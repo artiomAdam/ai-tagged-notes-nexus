@@ -9,3 +9,4 @@ W:\KnowledgeNexus\KnowledgeNexus\Nexus.Core\obj\Debug\net8.0\Nexus.Core.dll
 W:\KnowledgeNexus\KnowledgeNexus\Nexus.Core\obj\Debug\net8.0\refint\Nexus.Core.dll
 W:\KnowledgeNexus\KnowledgeNexus\Nexus.Core\obj\Debug\net8.0\Nexus.Core.pdb
 W:\KnowledgeNexus\KnowledgeNexus\Nexus.Core\obj\Debug\net8.0\ref\Nexus.Core.dll
+W:\KnowledgeNexus\KnowledgeNexus\Nexus.Core\obj\Debug\net8.0\Nexus.Core.csproj.AssemblyReference.cache

@@ -3,6 +3,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
 using System;
+using Nexus.Core.Storage;
 
 namespace Nexus.Desktop;
 
@@ -16,9 +17,12 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        var db = new DbContext();
+        db.Initialize();
+
         var sc = new ServiceCollection();
         // services (interfaces -> implementation)
-        // sc.AddSingleton(INoteStore, SqliteNoteStore>();  // repo/store
+        sc.AddSingleton<DbContext>();  // repo/store
         // sc.AddSingleton(INoteService, NoteService>();  // business logic
 
         // view-models
@@ -31,6 +35,7 @@ public partial class App : Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            
             var main = Services.GetRequiredService<MainWindow>();
             main.DataContext = Services.GetRequiredService<MainWindow>();
             desktop.MainWindow = main;
