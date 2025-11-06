@@ -1,0 +1,45 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:Nexus.Desktop.ViewModels"
+        xmlns:models="clr-namespace:Nexus.Core.Models;assembly=Nexus.Core"
+        x:Class="Nexus.Desktop.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="Knowledge Nexus"
+        Width="900" Height="600">
+
+	<Grid ColumnDefinitions="2*,Auto" RowDefinitions="Auto,*">
+		<!-- Toolbar -->
+		<StackPanel Grid.Row="0" Orientation="Horizontal" Margin="8">
+			<Button Content="New"    Command="{CompiledBinding NewNoteCommand}"   Margin="0,0,8,0"/>
+			<Button Content="Delete" Command="{CompiledBinding DeleteNoteCommand}" Margin="0,0,8,0"/>
+			<Button Content="Save"   Command="{CompiledBinding SaveNoteCommand}"/>
+		</StackPanel>
+
+		<Grid Grid.Row="1" ColumnDefinitions="2*,2*,2*">
+			<!-- Notes list -->
+			<ListBox ItemsSource="{CompiledBinding Notes}"
+					 SelectedItem="{CompiledBinding SelectedNote}"
+					 Margin="8">
+				<ListBox.ItemTemplate>
+					<DataTemplate x:DataType="models:Note">
+						<TextBlock Text="{CompiledBinding Title}" />
+					</DataTemplate>
+				</ListBox.ItemTemplate>
+			</ListBox>
+
+			<!-- Editor -->
+			<TextBox Grid.Column="1"
+					 Text="{CompiledBinding SelectedNote.Content}"
+					 AcceptsReturn="True"
+					 ScrollViewer.VerticalScrollBarVisibility="Auto"
+					 Margin="8"/>
+
+			<!-- Info text -->
+			<StackPanel Grid.Column="2" Margin="12" VerticalAlignment="Top">
+				<TextBlock Text="Details:" FontWeight="Bold" Margin="0,0,0,4"/>
+				<TextBlock Text="{CompiledBinding SelectedNote.CreatedAt, StringFormat='Created: {0:G}'}"/>
+				<TextBlock Text="{CompiledBinding SelectedNote.UpdatedAt, StringFormat='Updated: {0:G}'}"/>
+			</StackPanel>
+		</Grid>
+	</Grid>
+</Window>

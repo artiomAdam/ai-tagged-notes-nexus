@@ -1,6 +1,8 @@
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Markup.Xaml;
 
-namespace Nexus.Desktop;
+namespace Nexus.Desktop.Views;
 
 public partial class MainWindow : Window
 {

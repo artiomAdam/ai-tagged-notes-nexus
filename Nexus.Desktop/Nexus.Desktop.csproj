@@ -25,11 +25,10 @@
     <ProjectReference Include="..\Nexus.Core\Nexus.Core.csproj" />
   </ItemGroup>
 
+
   <ItemGroup>
     <Folder Include="Commands\" />
     <Folder Include="Utilities\" />
     <Folder Include="Resources\" />
-    <Folder Include="ViewModels\" />
-    <Folder Include="Views\" />
   </ItemGroup>
 </Project>

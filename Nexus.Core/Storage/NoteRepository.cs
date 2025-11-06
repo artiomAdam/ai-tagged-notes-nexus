@@ -91,7 +91,9 @@ namespace Nexus.Core.Storage
             cmd.Parameters.AddWithValue("$id", note.Id);
             cmd.Parameters.AddWithValue("$title", note.Title);
             cmd.Parameters.AddWithValue("$content", note.Content);
-            cmd.Parameters.AddWithValue("$updated", note.UpdatedAt);
+            DateTime now = DateTime.UtcNow;
+            note.UpdatedAt = now;
+            cmd.Parameters.AddWithValue("$updated", now);
 
             await cmd.ExecuteNonQueryAsync();
         }
