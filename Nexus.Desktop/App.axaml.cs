@@ -4,6 +4,7 @@ using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using Nexus.Core.Storage;
+using Nexus.Core.Interfaces;
 
 namespace Nexus.Desktop;
 
@@ -23,6 +24,7 @@ public partial class App : Application
         var sc = new ServiceCollection();
         // services (interfaces -> implementation)
         sc.AddSingleton<DbContext>();  // repo/store
+        sc.AddSingleton<INoteRepository, NoteRepository>();
         // sc.AddSingleton(INoteService, NoteService>();  // business logic
 
         // view-models

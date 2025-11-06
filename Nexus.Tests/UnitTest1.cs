@@ -1,4 +1,7 @@
-﻿namespace Nexus.Tests;
+﻿using Nexus.Core.Models;
+using Nexus.Core.Storage;
+
+namespace Nexus.Tests;
 
 public class Tests
 {
@@ -7,17 +10,5 @@ public class Tests
     {
     }
 
-    [Test]
-    public void Test1()
-    {
-        bool a = false;
-        Assert.That(a, Is.True);
-    }
-
-    [Test]
-    public void Test2()
-    {
-        bool a = false;
-        Assert.That(a, Is.False);
-    }
+    
 }
