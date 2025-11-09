@@ -121,11 +121,11 @@
               "target": "Package",
               "version": "[11.3.8, )"
             },
-            "Avalonia.Desktop": {
+            "Avalonia.Controls.ColorPicker": {
               "target": "Package",
               "version": "[11.3.8, )"
             },
-            "Avalonia.Diagnostics": {
+            "Avalonia.Desktop": {
               "target": "Package",
               "version": "[11.3.8, )"
             },
@@ -133,13 +133,37 @@
               "target": "Package",
               "version": "[11.3.8, )"
             },
+            "Avalonia.ReactiveUI": {
+              "target": "Package",
+              "version": "[11.3.8, )"
+            },
             "Avalonia.Themes.Fluent": {
               "target": "Package",
               "version": "[11.3.8, )"
             },
+            "Markdown.Avalonia": {
+              "target": "Package",
+              "version": "[11.0.2, )"
+            },
             "Microsoft.Extensions.DependencyInjection": {
               "target": "Package",
               "version": "[9.0.10, )"
+            },
+            "ReactiveUI": {
+              "target": "Package",
+              "version": "[22.2.1, )"
+            },
+            "RtfDomParser": {
+              "target": "Package",
+              "version": "[7.0.0, )"
+            },
+            "System.Reactive": {
+              "target": "Package",
+              "version": "[6.1.0, )"
+            },
+            "System.Reactive.Linq": {
+              "target": "Package",
+              "version": "[6.1.0, )"
             }
           },
           "imports": [

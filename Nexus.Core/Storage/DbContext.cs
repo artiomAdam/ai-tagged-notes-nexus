@@ -1,5 +1,6 @@
 ﻿
 using Microsoft.Data.Sqlite;
+using System.Diagnostics;
 
 namespace Nexus.Core.Storage
 {
@@ -9,9 +10,41 @@ namespace Nexus.Core.Storage
         private readonly string _dbName = "nexus.db";
         private SqliteConnection? _connection;
 
+        private readonly string notesTable = @"
+        CREATE TABLE IF NOT EXISTS Notes (
+            Id TEXT PRIMARY KEY,
+            Title TEXT,
+            Content TEXT,
+            CreatedAt TEXT,
+            UpdatedAt TEXT,
+            ParentId TEXT NULL REFERENCES Notes(Id)
+        );";
+
+        private readonly string attachmentsTable = @"
+        CREATE TABLE IF NOT EXISTS Attachments (
+            Id TEXT PRIMARY KEY,
+            NoteId TEXT REFERENCES Notes(Id),
+            FilePath TEXT,
+            MimeType TEXT,
+            CreatedAt TEXT
+        );";
+
+        private readonly string topicsTable = @"
+        CREATE TABLE IF NOT EXISTS Topics (
+            Id TEXT PRIMARY KEY,
+            Name TEXT UNIQUE
+        );";
+
+        private readonly string noteTopicsTable = @"
+        CREATE TABLE IF NOT EXISTS NoteTopics (
+            NoteId TEXT REFERENCES Notes(Id),
+            TopicId TEXT REFERENCES Topics(Id),
+            PRIMARY KEY (NoteId, TopicId)
+        );";
+
         public DbContext(string? customPath = null)
         {
-            // make sure folder exists
+            //TODO: make sure folder exists
             if (!string.IsNullOrEmpty(customPath))
             {
                 _dbPath = customPath;
@@ -22,6 +55,8 @@ namespace Nexus.Core.Storage
                 var appFolder = Path.Combine(documents, "KnowledgeNexus");
                 Directory.CreateDirectory(appFolder);
                 _dbPath = Path.Combine(appFolder, _dbName);
+
+                
             }
         }
 

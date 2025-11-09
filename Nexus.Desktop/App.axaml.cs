@@ -20,25 +20,27 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
-        // 1️⃣ Build the service collection
+        // Build the service collection
         var sc = new ServiceCollection();
 
-        // 2️⃣ Register Core / Data services
+        // Register Core / Data services
         sc.AddSingleton<DbContext>(sp =>
         {
-            var ctx = new DbContext("notes.db");
+            var ctx = new DbContext();
             ctx.Initialize();
             return ctx;
         });
         sc.AddSingleton<INoteRepository, NoteRepository>();
 
-        // 3️⃣ Register ViewModels
+        // Register ViewModels
         sc.AddTransient<MainViewModel>();
+        sc.AddTransient<NoteEditorViewModel>();
 
-        // 4️⃣ Register Windows
+        // Register Windows
         sc.AddSingleton<MainWindow>();
+        sc.AddSingleton<NoteEditorView>();
 
-        // 5️⃣ Build provider
+        // Build provider
         Services = sc.BuildServiceProvider();
 
         // 6️⃣ Launch main window

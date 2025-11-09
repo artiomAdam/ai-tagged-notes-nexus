@@ -9,13 +9,24 @@ namespace Nexus.Desktop.ViewModels
     public class MainViewModel : ObservableObject
     {
         private readonly INoteRepository _noteRepo;
+
+        private NoteEditorViewModel _noteEditor = new();
+        public NoteEditorViewModel NoteEditor
+        {
+            get => _noteEditor;
+            set => SetProperty(ref _noteEditor, value);
+        }
         private Note? _selectedNote;
         public ObservableCollection<Note> Notes { get; } = new();
 
         public Note? SelectedNote
         {
             get => _selectedNote;
-            set => SetProperty(ref _selectedNote, value);
+            set
+            {
+                if (SetProperty(ref _selectedNote, value) && value != null)
+                    NoteEditor.LoadNote(value);
+            }
         }
 
         // Commands
@@ -56,7 +67,8 @@ namespace Nexus.Desktop.ViewModels
         {
             if(SelectedNote != null)
             {
-                await _noteRepo.UpdateAsync(SelectedNote);
+                var editedNote = NoteEditor.GetEditedNote();
+                await _noteRepo.UpdateAsync(editedNote);
             }
         }
 
@@ -67,6 +79,7 @@ namespace Nexus.Desktop.ViewModels
                 await _noteRepo.DeleteAsync(SelectedNote.Id);
                 Notes.Remove(SelectedNote);
                 SelectedNote = null;
+                NoteEditor.LoadNote(new Note());
             }
         }
     }

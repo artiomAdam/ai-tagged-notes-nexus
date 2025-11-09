@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Nexus.Desktop")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5ca2429aff5abe53df0ea36bff4c33768110e2b9")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+71d8ad97654f68a5d70497373b108d7f2e588cd3")]
 [assembly: System.Reflection.AssemblyProductAttribute("Nexus.Desktop")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Nexus.Desktop")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

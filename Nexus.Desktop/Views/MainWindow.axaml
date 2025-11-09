@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:Nexus.Desktop.ViewModels"
         xmlns:models="clr-namespace:Nexus.Core.Models;assembly=Nexus.Core"
+		xmlns:views="clr-namespace:Nexus.Desktop.Views"
         x:Class="Nexus.Desktop.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="Knowledge Nexus"
@@ -15,7 +16,7 @@
 			<Button Content="Save"   Command="{CompiledBinding SaveNoteCommand}"/>
 		</StackPanel>
 
-		<Grid Grid.Row="1" ColumnDefinitions="2*,2*,2*">
+		<Grid Grid.Row="1" ColumnDefinitions="2*,4*,2*">
 			<!-- Notes list -->
 			<ListBox ItemsSource="{CompiledBinding Notes}"
 					 SelectedItem="{CompiledBinding SelectedNote}"
@@ -28,11 +29,9 @@
 			</ListBox>
 
 			<!-- Editor -->
-			<TextBox Grid.Column="1"
-					 Text="{CompiledBinding SelectedNote.Content}"
-					 AcceptsReturn="True"
-					 ScrollViewer.VerticalScrollBarVisibility="Auto"
-					 Margin="8"/>
+			<views:NoteEditorView DataContext="{Binding NoteEditor}" 
+								  Grid.Column="1"				  
+							      Margin="8"/>
 
 			<!-- Info text -->
 			<StackPanel Grid.Column="2" Margin="12" VerticalAlignment="Top">

@@ -1,0 +1,29 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:avrt="using:AvRichTextBox"
+             x:Class="Nexus.Desktop.Views.NoteEditorView">
+
+	<Grid RowDefinitions="Auto,Auto,Auto,*" Margin="8">
+		<!-- Row 1: Bold / Italic / Underline / Font -->
+		<StackPanel Orientation="Horizontal" Spacing="6">
+			<Button x:Name="BoldButton" Content="Bold" MinWidth="20"/>
+			<Button x:Name="ItalicButton" Content="Italic" MinWidth="20"/>
+			<Button x:Name="UnderlineButton" Content="Underline" MinWidth="20"/>
+
+			<TextBlock VerticalAlignment="Center" Margin="12,0,4,0" Text="Font:"/>
+			<ComboBox x:Name="FontComboBox" Width="200"/>
+		</StackPanel>
+
+		<!-- Row 2: Font size / Text color / Highlight -->
+		<StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="2">
+			<TextBlock VerticalAlignment="Center" Width="30" Text="Size:"/>
+			<NumericUpDown x:Name="FontSizeUpDown" Width="100" Minimum="6" Maximum="96" Increment="1" Value="14"/>
+			<TextBlock VerticalAlignment="Center" Margin="0,0,4,0" Text="Text color:"/>
+			<ColorPicker x:Name="FontColorPicker" Width="50"/>
+			<TextBlock VerticalAlignment="Center" Margin="0,0,4,0" Text="Highlight:"/>
+			<ColorPicker x:Name="HighlightColorPicker" Width="50"/>
+		</StackPanel>
+		<!-- Row 3: RichTextBox -->
+		<avrt:RichTextBox x:Name="NoteRTB" Grid.Row="3"/>
+	</Grid>
+</UserControl>

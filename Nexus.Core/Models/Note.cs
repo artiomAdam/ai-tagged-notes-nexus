@@ -35,6 +35,9 @@ namespace Nexus.Core.Models
             set => SetProperty(ref _updatedAt, value);
         }
 
+        public List<MediaAttachment> Attachments { get; set; } = new();
+
+
         public Note Clone() => (Note)MemberwiseClone();
     }
 }
