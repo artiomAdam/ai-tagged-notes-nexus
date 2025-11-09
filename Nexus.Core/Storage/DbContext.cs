@@ -65,13 +65,7 @@ namespace Nexus.Core.Storage
             _connection = new SqliteConnection($"Data Source={_dbPath}");
             _connection.Open();
 
-            var cmdText = @"
-                        CREATE TABLE IF NOT EXISTS Notes (
-                            Id TEXT PRIMARY KEY,
-                            Title TEXT,
-                            Content TEXT,
-                            CreatedAt TEXT,
-                            UpdatedAt TEXT );";
+            string cmdText = notesTable + attachmentsTable + topicsTable + noteTopicsTable;
 
             using var command = _connection.CreateCommand();
             command.CommandText = cmdText;
