@@ -43,8 +43,7 @@ namespace Nexus.Core.Storage
         );";
 
         public DbContext(string? customPath = null)
-        {
-            //TODO: make sure folder exists
+        {   
             if (!string.IsNullOrEmpty(customPath))
             {
                 _dbPath = customPath;
