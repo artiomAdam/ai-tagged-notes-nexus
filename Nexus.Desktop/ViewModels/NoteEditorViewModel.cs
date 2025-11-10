@@ -1,7 +1,11 @@
-﻿using Nexus.Core.Models;
-using ReactiveUI;
+﻿using Avalonia.Media.Imaging;
 using AvRichTextBox;
+using Nexus.Core.Models;
+using ReactiveUI;
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 
 
 namespace Nexus.Desktop.ViewModels
@@ -10,6 +14,7 @@ namespace Nexus.Desktop.ViewModels
     {
         private Note _currentNote = new();
         private RichTextBox? _editor;
+        private int _imgNum = 0;
 
         public Note CurrentNote
         {
@@ -20,6 +25,7 @@ namespace Nexus.Desktop.ViewModels
 
         public NoteEditorViewModel()
         {
+
         }
 
         public void LoadNote(Note note)
@@ -35,7 +41,7 @@ namespace Nexus.Desktop.ViewModels
         public Note GetEditedNote()
         {
             if (_editor != null)
-                CurrentNote.Content = _editor.SaveXamlString();
+                CurrentNote.Content = _editor.GetFullXamlString();
             else
                 CurrentNote.Content = string.Empty;
 
@@ -56,6 +62,37 @@ namespace Nexus.Desktop.ViewModels
                 _editor.CloseDocument();
             else
                 _editor.LoadXamlString(CurrentNote.Content);
+
+            _editor.ImagePasteRequested += async (sender, bitmap) =>
+            {
+                string folder = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                    $"KnowledgeNexus\\note_{_currentNote.Id}");
+                Directory.CreateDirectory(folder);
+
+                string filename = $"img_{_imgNum++}.png";
+                string fullPath = Path.Combine(folder, filename);
+
+                using (var fs = File.Create(fullPath))
+                    bitmap.Save(fs);
+
+                var img = new Avalonia.Controls.Image
+                {
+                    Source = new Bitmap(fullPath),
+                    Width = 80,
+                    Height = 80,
+                    Tag = fullPath,
+                };
+
+                var container = new EditableInlineUIContainer(img, fullPath);
+                Paragraph? currentPara = new();
+                
+                currentPara.Inlines.Add(container);
+                _editor.FlowDocument.Blocks.Add(currentPara);
+
+                CurrentNote.Content = _editor.GetFullXamlString();
+                CurrentNote.UpdatedAt = DateTime.UtcNow;
+            };
         }
 
     }

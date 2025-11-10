@@ -1,44 +1,73 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:Nexus.Desktop.ViewModels"
-        xmlns:models="clr-namespace:Nexus.Core.Models;assembly=Nexus.Core"
 		xmlns:views="clr-namespace:Nexus.Desktop.Views"
+		xmlns:models="clr-namespace:Nexus.Core.Models;assembly=Nexus.Core"
+		xmlns:utils="clr-namespace:Nexus.Desktop.Utilities"
         x:Class="Nexus.Desktop.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="Knowledge Nexus"
         Width="900" Height="600">
+	<Grid ColumnDefinitions="320,*">
+		<!-- LEFT PANEL -->
+		<Border Grid.Column="0" Background="#666" Padding="8">
+			<DockPanel>
+				<!-- Top Buttons -->
+				<StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8">
+					<Button Content="Add Note" Command="{Binding AddParentNoteCommand}" />
+					<Button Content="Add Child" Command="{Binding AddChildNoteCommand}" />
+					<Button Content="Delete" Command="{CompiledBinding DeleteNoteCommand}"/>
+					<Button Content="Save"   Command="{CompiledBinding SaveNoteCommand}"/>
+				</StackPanel>
 
-	<Grid ColumnDefinitions="2*,Auto" RowDefinitions="Auto,*">
-		<!-- Toolbar -->
-		<StackPanel Grid.Row="0" Orientation="Horizontal" Margin="8">
-			<Button Content="New"    Command="{CompiledBinding NewNoteCommand}"   Margin="0,0,8,0"/>
-			<Button Content="Delete" Command="{CompiledBinding DeleteNoteCommand}" Margin="0,0,8,0"/>
-			<Button Content="Save"   Command="{CompiledBinding SaveNoteCommand}"/>
-		</StackPanel>
+				<!-- Filters header + controls -->
+				<StackPanel DockPanel.Dock="Top" Margin="0,8,0,8" Spacing="4">
+					<Border Background="#3B66B1" Padding="6">
+						<TextBlock Text="Filtering options" Foreground="White" />
+					</Border>
+					<!-- put real filter controls here -->
+					<ToggleSwitch Content="Hierarchy mode"
+								  IsChecked="{Binding IsHierarchyMode}"/>
+				</StackPanel>
 
-		<Grid Grid.Row="1" ColumnDefinitions="2*,4*,2*">
-			<!-- Notes list -->
-			<ListBox ItemsSource="{CompiledBinding Notes}"
-					 SelectedItem="{CompiledBinding SelectedNote}"
-					 Margin="8">
-				<ListBox.ItemTemplate>
-					<DataTemplate x:DataType="models:Note">
-						<TextBlock Text="{CompiledBinding Title}" />
-					</DataTemplate>
-				</ListBox.ItemTemplate>
-			</ListBox>
+				<!-- Notes list: switch between hierarchy and topics list -->
+				<Grid>
+					<!-- Hierarchy mode -->
+					<TreeView ItemsSource="{Binding NotesHierarchy}"
+						SelectedItem="{Binding SelectedNote, Mode=TwoWay}"
+							  IsVisible="{Binding IsHierarchyMode}">
+						<TreeView.DataTemplates>
+							<TreeDataTemplate DataType="models:Note"
+											  ItemsSource="{Binding Children}">
+								<TextBlock Text="{Binding Title}" />
+							</TreeDataTemplate>
+						</TreeView.DataTemplates>
+					</TreeView>
 
-			<!-- Editor -->
-			<views:NoteEditorView DataContext="{Binding NoteEditor}" 
-								  Grid.Column="1"				  
-							      Margin="8"/>
+					<!-- Topics mode  -->
+					<TreeView ItemsSource="{Binding TopicsHierarchy}"
+								SelectedItem="{Binding SelectedNote, Mode=TwoWay}"
+								IsVisible="{Binding IsHierarchyMode, 
+											Converter={x:Static utils:BoolInvertConverter.Instance}}">
+						<TreeView.DataTemplates>
+							<TreeDataTemplate DataType="models:Topic"
+											ItemsSource="{Binding Notes}">
+								<TextBlock Text="{Binding Name}" FontWeight="Bold"/>
+							</TreeDataTemplate>
+						</TreeView.DataTemplates>
+					</TreeView>
+				</Grid>
+			</DockPanel>
+		</Border>
 
-			<!-- Info text -->
-			<StackPanel Grid.Column="2" Margin="12" VerticalAlignment="Top">
-				<TextBlock Text="Details:" FontWeight="Bold" Margin="0,0,0,4"/>
-				<TextBlock Text="{CompiledBinding SelectedNote.CreatedAt, StringFormat='Created: {0:G}'}"/>
-				<TextBlock Text="{CompiledBinding SelectedNote.UpdatedAt, StringFormat='Updated: {0:G}'}"/>
-			</StackPanel>
-		</Grid>
+		<!-- RIGHT SIDE: the whole editor area -->
+		<views:NoteEditorView Grid.Column="1"
+							  DataContext="{Binding NoteEditor}" />
 	</Grid>
 </Window>
+
+
+
+
+
+

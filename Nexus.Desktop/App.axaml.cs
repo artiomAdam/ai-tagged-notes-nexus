@@ -31,6 +31,8 @@ public partial class App : Application
             return ctx;
         });
         sc.AddSingleton<INoteRepository, NoteRepository>();
+        sc.AddSingleton<ITopicsRepository, TopicsRepository>();
+        sc.AddSingleton<INoteTopicsRepository, NoteTopicsRepository>();
 
         // Register ViewModels
         sc.AddTransient<MainViewModel>();

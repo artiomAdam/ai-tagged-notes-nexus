@@ -20,14 +20,6 @@ namespace Nexus.Core.Storage
             ParentId TEXT NULL REFERENCES Notes(Id)
         );";
 
-        private readonly string attachmentsTable = @"
-        CREATE TABLE IF NOT EXISTS Attachments (
-            Id TEXT PRIMARY KEY,
-            NoteId TEXT REFERENCES Notes(Id),
-            FilePath TEXT,
-            MimeType TEXT,
-            CreatedAt TEXT
-        );";
 
         private readonly string topicsTable = @"
         CREATE TABLE IF NOT EXISTS Topics (
@@ -64,7 +56,7 @@ namespace Nexus.Core.Storage
             _connection = new SqliteConnection($"Data Source={_dbPath}");
             _connection.Open();
 
-            string cmdText = notesTable + attachmentsTable + topicsTable + noteTopicsTable;
+            string cmdText = notesTable + topicsTable + noteTopicsTable;
 
             using var command = _connection.CreateCommand();
             command.CommandText = cmdText;

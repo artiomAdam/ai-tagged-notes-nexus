@@ -25,14 +25,12 @@ public partial class NoteEditorView : UserControl
         var vm = (NoteEditorViewModel)DataContext!;
         vm.AttachEditor(NoteRTB);
 
-        // Populate fonts
         var fonts = new List<string>();
         foreach (var font in FontManager.Current.SystemFonts)
             fonts.Add(font.Name);
         FontComboBox.ItemsSource = fonts;
         FontComboBox.SelectedItem = "Segoe UI";
 
-        // Hook up handlers
         BoldButton.Click += BoldButton_Clicked;
         ItalicButton.Click += ItalicButton_Clicked;
         UnderlineButton.Click += UnderscoreButton_Clicked;
