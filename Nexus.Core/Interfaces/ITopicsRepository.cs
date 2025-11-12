@@ -1,4 +1,5 @@
 ﻿using Nexus.Core.Models;
+using Nexus.Core.Storage;
 
 namespace Nexus.Core.Interfaces
 {
@@ -10,5 +11,10 @@ namespace Nexus.Core.Interfaces
         Task InsertAsync(Topic topic);
         Task UpdateAsync(Topic topic);
         Task DeleteAsync(string id);
+
+        Task<string?> GetNameByIdAsync(string id);
+
+        Task<string?> GetIdByNameAsync(string name);
+        Task UpdateEmbeddingAsync(string id, float[] embedding);
     }
 }

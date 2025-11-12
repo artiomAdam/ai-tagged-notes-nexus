@@ -7,6 +7,7 @@ using Nexus.Core.Storage;
 using Nexus.Core.Interfaces;
 using Nexus.Desktop.ViewModels;
 using Nexus.Desktop.Views;
+using Nexus.Core.Services;
 
 namespace Nexus.Desktop;
 
@@ -20,32 +21,33 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
-        // Build the service collection
         var sc = new ServiceCollection();
 
-        // Register Core / Data services
+        // Database & Repositories
         sc.AddSingleton<DbContext>(sp =>
         {
             var ctx = new DbContext();
             ctx.Initialize();
             return ctx;
         });
+
         sc.AddSingleton<INoteRepository, NoteRepository>();
         sc.AddSingleton<ITopicsRepository, TopicsRepository>();
         sc.AddSingleton<INoteTopicsRepository, NoteTopicsRepository>();
 
-        // Register ViewModels
+        // ViewModels
         sc.AddTransient<MainViewModel>();
         sc.AddTransient<NoteEditorViewModel>();
 
-        // Register Windows
+        // Windows
         sc.AddSingleton<MainWindow>();
         sc.AddSingleton<NoteEditorView>();
 
-        // Build provider
+        // Services
+        sc.AddSingleton<TagPredictor>();
+
         Services = sc.BuildServiceProvider();
 
-        // 6️⃣ Launch main window
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var main = Services.GetRequiredService<MainWindow>();

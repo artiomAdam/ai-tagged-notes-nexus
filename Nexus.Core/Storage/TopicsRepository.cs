@@ -1,5 +1,7 @@
 ﻿using Nexus.Core.Interfaces;
 using Nexus.Core.Models;
+using Nexus.Core.Utilities;
+using System.Xml.Linq;
 
 namespace Nexus.Core.Storage
 {
@@ -25,14 +27,15 @@ namespace Nexus.Core.Storage
             var topics = new List<Topic>();
             using var conn = _dbContext.CreateConnection();
             var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT Id, Name FROM " + _table;
+            cmd.CommandText = "SELECT Id, Name, Embedding FROM " + _table;
             using var reader = await cmd.ExecuteReaderAsync();
             while(await reader.ReadAsync())
             {
                 topics.Add(new Topic
                 {
                     Id = reader.GetString(0),
-                    Name = reader.GetString(1)
+                    Name = reader.GetString(1),
+                    Embedding = ByteUtils.BytesToFloatArray(reader["Embedding"]),
                 });
 
             }
@@ -43,7 +46,7 @@ namespace Nexus.Core.Storage
         {
             using var conn = _dbContext.CreateConnection();
             var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT Id, Name FROM "+_table+" WHERE Id = $id";
+            cmd.CommandText = "SELECT Id, Name, Embedding FROM "+_table+" WHERE Id = $id";
             cmd.Parameters.AddWithValue("id", id);
             using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -51,8 +54,36 @@ namespace Nexus.Core.Storage
                 return new Topic
                 {
                     Id = reader.GetString(0),
-                    Name = reader.GetString(1)
+                    Name = reader.GetString(1),
+                    Embedding = ByteUtils.BytesToFloatArray(reader["Embedding"]),
                 };
+            }
+            return null;
+        }
+
+        public async Task<string?> GetNameByIdAsync(string id)
+        {
+            using var conn = _dbContext.CreateConnection();
+            var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT Name FROM " + _table + " WHERE Id = $id";
+            cmd.Parameters.AddWithValue("id", id);
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                return reader.GetString(0);
+            }
+            return null;
+        }
+        public async Task<string?> GetIdByNameAsync(string name)
+        {
+            using var conn = _dbContext.CreateConnection();
+            var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT Id FROM " + _table + " WHERE Name = $name";
+            cmd.Parameters.AddWithValue("name", name);
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                return reader.GetString(0);
             }
             return null;
         }
@@ -61,7 +92,7 @@ namespace Nexus.Core.Storage
         {
             using var conn = _dbContext.CreateConnection();
             var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT Id, Name FROM " + _table + " WHERE Name = $name";
+            cmd.CommandText = "SELECT Id, Name, Embedding FROM " + _table + " WHERE Name = $name";
             cmd.Parameters.AddWithValue("name", name);
             using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -69,7 +100,8 @@ namespace Nexus.Core.Storage
                 return new Topic
                 {
                     Id = reader.GetString(0),
-                    Name = reader.GetString(1)
+                    Name = reader.GetString(1),
+                    Embedding = ByteUtils.BytesToFloatArray(reader["Embedding"]),
                 };
             }
             return null;
@@ -79,11 +111,12 @@ namespace Nexus.Core.Storage
         {
             using var conn = _dbContext.CreateConnection();
             var cmd = conn.CreateCommand();
-            cmd.CommandText = @"INSERT INTO "+_table+ @" (Id, Name)
-                                VALUES ($id, $name)
+            cmd.CommandText = @"INSERT INTO " + _table + @" (Id, Name, Embedding)
+                                VALUES ($id, $name, $embedding)
                                 ON CONFLICT(Name) DO NOTHING;";
             cmd.Parameters.AddWithValue("id", topic.Id);
             cmd.Parameters.AddWithValue("name", topic.Name);
+            cmd.Parameters.AddWithValue("embedding", (object?)ByteUtils.FloatArrayToBytes(topic.Embedding) ?? DBNull.Value);
 
             await cmd.ExecuteNonQueryAsync();
         }
@@ -94,11 +127,25 @@ namespace Nexus.Core.Storage
             var cmd = conn.CreateCommand();
             cmd.CommandText = @" 
                 UPDATE " + _table + @"
-                SET Name = $name
-                WHERE Id = $id
-                ON CONFLICT(Name) DO NOTHING;";
+                SET Name = $name, Embedding = $embedding
+                WHERE Id = $id";
             cmd.Parameters.AddWithValue("id", topic.Id);
             cmd.Parameters.AddWithValue("name", topic.Name);
+            cmd.Parameters.AddWithValue("embedding", (object?)ByteUtils.FloatArrayToBytes(topic.Embedding) ?? DBNull.Value);
+
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        public async Task UpdateEmbeddingAsync(string id, float[] embedding)
+        {
+            using var conn = _dbContext.CreateConnection();
+            var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                    UPDATE " + _table + @"
+                    SET Embedding = $embedding
+                    WHERE Id = $id";
+            cmd.Parameters.AddWithValue("id", id);
+            cmd.Parameters.AddWithValue("embedding", (object?)ByteUtils.FloatArrayToBytes(embedding) ?? DBNull.Value);
 
             await cmd.ExecuteNonQueryAsync();
         }

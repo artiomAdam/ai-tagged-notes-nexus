@@ -1,29 +1,60 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:avrt="using:AvRichTextBox"
-             x:Class="Nexus.Desktop.Views.NoteEditorView">
+             xmlns:av="clr-namespace:AvRichTextBox;assembly=AvRichTextBox"
+			 xmlns:vm="clr-namespace:Nexus.Desktop.ViewModels"
+             x:Class="Nexus.Desktop.Views.NoteEditorView"
+			 x:DataType="vm:NoteEditorViewModel">
+	<!-- Columns: editor | extras ; Rows: title | body | footer -->
+	<Grid ColumnDefinitions="*,340" RowDefinitions="Auto,*,Auto">
 
-	<Grid RowDefinitions="Auto,Auto,Auto,*" Margin="8">
-		<!-- Row 1: Bold / Italic / Underline / Font -->
-		<StackPanel Orientation="Horizontal" Spacing="6">
-			<Button x:Name="BoldButton" Content="Bold" MinWidth="20"/>
-			<Button x:Name="ItalicButton" Content="Italic" MinWidth="20"/>
-			<Button x:Name="UnderlineButton" Content="Underline" MinWidth="20"/>
+		<!-- Title row -->
+		<TextBox Grid.Row="0" Grid.ColumnSpan="2" Margin="8"
+				 Watermark="Title…"
+				 Text="{Binding CurrentNote.Title, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+				 FontSize="18"/>
 
-			<TextBlock VerticalAlignment="Center" Margin="12,0,4,0" Text="Font:"/>
-			<ComboBox x:Name="FontComboBox" Width="200"/>
-		</StackPanel>
+		<!-- Rich text editor -->
+		<av:RichTextBox x:Name="Editor"
+                Grid.Row="1" Grid.Column="0"
+                Margin="8" />
 
-		<!-- Row 2: Font size / Text color / Highlight -->
-		<StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="2">
-			<TextBlock VerticalAlignment="Center" Width="30" Text="Size:"/>
-			<NumericUpDown x:Name="FontSizeUpDown" Width="100" Minimum="6" Maximum="96" Increment="1" Value="14"/>
-			<TextBlock VerticalAlignment="Center" Margin="0,0,4,0" Text="Text color:"/>
-			<ColorPicker x:Name="FontColorPicker" Width="50"/>
-			<TextBlock VerticalAlignment="Center" Margin="0,0,4,0" Text="Highlight:"/>
-			<ColorPicker x:Name="HighlightColorPicker" Width="50"/>
-		</StackPanel>
-		<!-- Row 3: RichTextBox -->
-		<avrt:RichTextBox x:Name="NoteRTB" Grid.Row="3"/>
+		<!-- Extras panel (switchable) -->
+		<TabControl Grid.Row="1" Grid.Column="1" Margin="8"
+					SelectedIndex="{Binding ExtrasTabIndex}">
+			<TabItem Header="Edit Note Topics">
+				<ScrollViewer VerticalScrollBarVisibility="Auto">
+					<StackPanel Spacing="6">
+						<Button Content="Add Topic" Command="{Binding AddTopicCommand}"/>
+						<Button Content="Predict Topic" Command="{Binding PredictTopicCommand}" />
+						<ListBox ItemsSource="{Binding LinkedTopics}"
+								SelectedItem="{Binding SelectedTopic, Mode=TwoWay}">
+							<ListBox.ItemTemplate>
+								<DataTemplate>
+									<TextBlock Text="{Binding Name}" />
+								</DataTemplate>
+							</ListBox.ItemTemplate>
+						</ListBox>
+						<TextBlock Text="{Binding PredictedTopicName}"
+								   FontStyle="Italic"
+								   Foreground="Gray"
+								   Margin="4,2,0,0"/>
+					</StackPanel>
+				</ScrollViewer>
+			</TabItem>
+
+			<TabItem Header="Edit Text">
+				<StackPanel Spacing="6">
+					<Button Content="Bold" Command="{Binding ToggleBoldCommand}"/>
+					<Button Content="Italic" Command="{Binding ToggleItalicCommand}"/>
+					<Button Content="Underline" Command="{Binding ToggleUnderlineCommand}"/>
+				</StackPanel>
+			</TabItem>
+		</TabControl>
+
+		<!-- Footer wrapping editor + extras -->
+		<Border Grid.Row="2" Grid.ColumnSpan="2" Background="#3B66B1" Padding="8">
+			<TextBlock Foreground="White"
+					   Text="{Binding FooterText}"/>
+		</Border>
 	</Grid>
 </UserControl>

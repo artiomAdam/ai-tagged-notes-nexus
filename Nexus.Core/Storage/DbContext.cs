@@ -24,7 +24,8 @@ namespace Nexus.Core.Storage
         private readonly string topicsTable = @"
         CREATE TABLE IF NOT EXISTS Topics (
             Id TEXT PRIMARY KEY,
-            Name TEXT UNIQUE
+            Name TEXT UNIQUE,
+            Embedding BLOB
         );";
 
         private readonly string noteTopicsTable = @"

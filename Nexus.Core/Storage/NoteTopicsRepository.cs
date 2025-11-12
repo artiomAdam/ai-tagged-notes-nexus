@@ -17,7 +17,7 @@ namespace Nexus.Core.Storage
             var cmd = conn.CreateCommand();
             cmd.CommandText = "INSERT OR IGNORE INTO "+_table+" (NoteId, TopicId) VALUES ($noteId, $topicId)";
             cmd.Parameters.AddWithValue("$noteId", noteId);
-            cmd.Parameters.AddWithValue("topicId", topicId);
+            cmd.Parameters.AddWithValue("$topicId", topicId);
             await cmd.ExecuteNonQueryAsync();
         }
 

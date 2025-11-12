@@ -1,6 +1,7 @@
 ﻿using Nexus.Core.Interfaces;
 using Nexus.Core.Models;
 using Nexus.Core.Utilities;
+using ReactiveUI;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -14,7 +15,7 @@ namespace Nexus.Desktop.ViewModels
     {
         private readonly INoteRepository _noteRepo;
 
-        private NoteEditorViewModel _noteEditor = new();
+        private readonly NoteEditorViewModel _noteEditor;
 
         private bool _isHierarchyMode = true;
         public bool IsHierarchyMode
@@ -29,7 +30,6 @@ namespace Nexus.Desktop.ViewModels
         public NoteEditorViewModel NoteEditor
         {
             get => _noteEditor;
-            set => SetProperty(ref _noteEditor, value);
         }
         private Note? _selectedNote;
         public ObservableCollection<Note> NotesHierarchy { get; private set; } = new();
@@ -57,7 +57,6 @@ namespace Nexus.Desktop.ViewModels
         public ICommand AddParentNoteCommand { get; }
         public ICommand AddChildNoteCommand { get; }
 
-        private bool _isTopicsMode => !_isHierarchyMode;
         private Topic? _selectedTopic;
         public Topic? SelectedTopic
         {
@@ -66,11 +65,13 @@ namespace Nexus.Desktop.ViewModels
         }
 
 
-        public MainViewModel(INoteRepository noteRepo, ITopicsRepository topicsRepo, INoteTopicsRepository noteTopicsRepo)
+        public MainViewModel(INoteRepository noteRepo, ITopicsRepository topicsRepo, INoteTopicsRepository noteTopicsRepo, NoteEditorViewModel noteEditor)
         {
             _noteRepo = noteRepo;
             _topicsRepo = topicsRepo;
             _noteTopicsRepo = noteTopicsRepo;
+            _noteEditor = noteEditor;
+            _noteEditor.TopicsChanged += async () => await LoadTopicsAsync();
 
 
             DeleteNoteCommand = new RelayCommand(async _ => await DeleteNoteAsync());
@@ -87,27 +88,52 @@ namespace Nexus.Desktop.ViewModels
 
         private async Task LoadNotesAndTopics()
         {
-            // TODO: does this need to be two seperate functions? should assess how slow it is in a further stress test
-            var notes = (await _noteRepo.GetAllAsync()).ToList();
-            var topics = (await _topicsRepo.GetAllAsync()).ToList();
+            await LoadNotesAsync();
+            await LoadTopicsAsync();
+        }
 
+        private async Task LoadNotesAsync()
+        {
+            var notes = (await _noteRepo.GetAllAsync()).ToList();
             NotesHierarchy.Clear();
             var hierarchy = BuildNoteHierarchy(notes);
             foreach (var n in hierarchy)
                 NotesHierarchy.Add(n);
+        }
 
-            var noteMap = notes.ToDictionary(n => n.Id);
-            TopicsHierarchy.Clear();
+        private async Task LoadTopicsAsync()
+        {
+            var prevSelectedNote = SelectedNote;
+            var topics = (await _topicsRepo.GetAllAsync()).ToList();
+            var noteMap = (await _noteRepo.GetAllAsync()).ToDictionary(n => n.Id);
+
+            // switch to UI thread for collection updates
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                TopicsHierarchy.Clear();
+            });
+
             foreach (var topic in topics)
             {
                 topic.Notes.Clear();
                 var noteIds = await _noteTopicsRepo.GetNotesForTopicAsync(topic.Id);
                 foreach (var id in noteIds)
-                {
                     if (noteMap.TryGetValue(id, out var note))
                         topic.Notes.Add(note);
+
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    TopicsHierarchy.Add(topic);
+                });
+            }
+            if (prevSelectedNote != null)
+            {
+                var restored = noteMap.TryGetValue(prevSelectedNote.Id, out var found) ? found : null;
+                if (restored != null)
+                {
+                    SelectedNote = restored;
+                    NoteEditor.LoadNote(restored);
                 }
-                TopicsHierarchy.Add(topic);
             }
         }
 
@@ -129,6 +155,10 @@ namespace Nexus.Desktop.ViewModels
             {
                 var editedNote = NoteEditor.GetEditedNote();
                 await _noteRepo.UpdateAsync(editedNote);
+                editedNote.HasUnsavedChanges = false;
+                editedNote.UpdatedAt = DateTime.UtcNow;
+
+                NoteEditor.RaisePropertyChanged(nameof(NoteEditor.FooterText));
             }
         }
 
@@ -159,6 +189,7 @@ namespace Nexus.Desktop.ViewModels
 
             SelectedNote = null;
             NoteEditor.LoadNote(new Note());
+            await LoadTopicsAsync();
         }
 
         private async Task AddParentNoteAsync()

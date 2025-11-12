@@ -6,14 +6,13 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Folder Include="Utilities\" />
-    <Folder Include="Services\" />
-  </ItemGroup>
-
+	<ItemGroup>
+		<None Include="AI\Embeddings\e5-base-v2-onnx\**\*" CopyToOutputDirectory="PreserveNewest" />
+	</ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.10" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.23.2" />
   </ItemGroup>
 
 </Project>

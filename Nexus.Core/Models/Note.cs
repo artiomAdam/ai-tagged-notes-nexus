@@ -42,6 +42,8 @@ namespace Nexus.Core.Models
             set => SetProperty(ref _updatedAt, value);
         }
 
+        public bool HasUnsavedChanges { get; set; }
+
         public ObservableCollection<Note> Children { get; set; } = new();
 
 

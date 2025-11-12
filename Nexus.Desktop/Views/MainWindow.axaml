@@ -33,19 +33,32 @@
 				<!-- Notes list: switch between hierarchy and topics list -->
 				<Grid>
 					<!-- Hierarchy mode -->
-					<TreeView ItemsSource="{Binding NotesHierarchy}"
+					<TreeView x:Name="NotesTree" ItemsSource="{Binding NotesHierarchy}"
 						SelectedItem="{Binding SelectedNote, Mode=TwoWay}"
 							  IsVisible="{Binding IsHierarchyMode}">
 						<TreeView.DataTemplates>
-							<TreeDataTemplate DataType="models:Note"
-											  ItemsSource="{Binding Children}">
-								<TextBlock Text="{Binding Title}" />
+							<TreeDataTemplate DataType="models:Note" ItemsSource="{Binding Children}">
+								<StackPanel Orientation="Horizontal" Spacing="6">
+									<TextBlock Text="{Binding Title}" VerticalAlignment="Center"/>
+
+									<Button Content="＋"
+											Width="20" Height="20" Padding="0" Margin="4,0,0,0"
+											Command="{Binding $parent[Window].DataContext.AddChildNoteCommand}"
+											CommandParameter="{Binding}">
+										<Button.IsVisible>
+											<MultiBinding Converter="{x:Static utils:EqualityToBoolConverter.Instance}">
+												<Binding Path="$parent[TreeView].SelectedItem"/>
+												<Binding Path="."/>
+											</MultiBinding>
+										</Button.IsVisible>
+									</Button>
+								</StackPanel>
 							</TreeDataTemplate>
 						</TreeView.DataTemplates>
 					</TreeView>
 
 					<!-- Topics mode  -->
-					<TreeView ItemsSource="{Binding TopicsHierarchy}"
+					<TreeView x:Name="TopicsTree" ItemsSource="{Binding TopicsHierarchy}"
 								SelectedItem="{Binding SelectedNote, Mode=TwoWay}"
 								IsVisible="{Binding IsHierarchyMode, 
 											Converter={x:Static utils:BoolInvertConverter.Instance}}">

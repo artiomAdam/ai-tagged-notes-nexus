@@ -14,6 +14,8 @@ namespace Nexus.Core.Models
             set => SetProperty(ref _name, value);
         }
 
+        public float[]? Embedding { get; set; }
+
         public ObservableCollection<Note> Notes { get; } = new();
 
         public Topic Clone() => (Topic)MemberwiseClone();
