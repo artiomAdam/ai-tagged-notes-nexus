@@ -14,7 +14,6 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Reactive.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 
@@ -23,37 +22,44 @@ namespace Nexus.Desktop.ViewModels
 {
     public class NoteEditorViewModel : ReactiveObject
     {
+
+        // Topics:
+            // predictions:
         private readonly TagPredictor _tagPredictor;
-        private int _extrasTabIndex;
-        public int ExtrasTabIndex
+        private string? _predictedTopicName;
+        public TagPredictor Predictor => _tagPredictor;
+        public string? PredictedTopicName
         {
-            get => _extrasTabIndex;
-            set => this.RaiseAndSetIfChanged(ref _extrasTabIndex, value);
-        }
-
-        public string FooterText =>
-                CurrentNote is null
-                ? "No note selected"
-                : $"{CurrentNote.Title} • Created: {CurrentNote.CreatedAt:g} • Last Updated: {CurrentNote.UpdatedAt:g}" +
-                  (CurrentNote.HasUnsavedChanges ? " • ✖ Unsaved Changes" : "");
-        private RichTextBox? _editor;
-        private int _imgNum = 0;
-
-        private Note? _currentNote;
-        public Note? CurrentNote
-        {
-            get => _currentNote;
+            get => _predictedTopicName;
             set
             {
-                this.RaiseAndSetIfChanged(ref _currentNote, value);
-                _ = LoadLinkedTopicsAsync();
+                this.RaiseAndSetIfChanged(ref _predictedTopicName, value);
+                if (value != null)
+                {
+                    //TODO: ?
+                }
             }
         }
+        public ObservableCollection<string> PredictedTopics { get; } = new();
 
-        private readonly INoteTopicsRepository _noteTopicsRepo;
-        private readonly ITopicsRepository _topicsRepo;
-        public ObservableCollection<Topic> LinkedTopics { get; } = new();
+
+
+        // topic picker (temporary?)
         private Topic? _selectedTopic;
+        private TopicPickerItem? _selectedTopicPickerItem;
+        private int _topicPickerSelectedIndex;
+        public ObservableCollection<TopicPickerItem> TopicPickerItems { get; } = new();
+        public TopicPickerItem? SelectedTopicPickerItem
+        {
+            get => _selectedTopicPickerItem;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _selectedTopicPickerItem, value);
+                OnTopicPickerChanged();
+            }
+        }
+        public ObservableCollection<Topic> LinkedTopics { get; } = new();
+        
         public Topic? SelectedTopic
         {
             get => _selectedTopic;
@@ -66,8 +72,52 @@ namespace Nexus.Desktop.ViewModels
                 }
             }
         }
+        public int TopicPickerSelectedIndex
+        {
+            get => _topicPickerSelectedIndex;
+            set => this.RaiseAndSetIfChanged(ref _topicPickerSelectedIndex, value);
+        }
 
         public event Func<Task>? TopicsChanged;
+
+
+        // Extras Tab:
+        private int _extrasTabIndex;
+        public int ExtrasTabIndex
+        {
+            get => _extrasTabIndex;
+            set => this.RaiseAndSetIfChanged(ref _extrasTabIndex, value);
+        }
+
+        // Footer:
+        public string FooterText =>
+                CurrentNote is null
+                ? "No note selected"
+                : $"{CurrentNote.Title} • Created: {CurrentNote.CreatedAt:g} • Last Updated: {CurrentNote.UpdatedAt:g}" +
+                  (CurrentNote.HasUnsavedChanges ? " • ✖ Unsaved Changes" : "");
+        private RichTextBox? _editor;
+        private int _imgNum = 0; // TODO: check this out
+
+        // Note:
+        private Note? _currentNote;
+        public Note? CurrentNote
+        {
+            get => _currentNote;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _currentNote, value);
+                _ = LoadLinkedTopicsAsync();
+                _ = LoadTopicPickerAsync();
+            }
+        }
+
+        // Storage:
+        private readonly INoteTopicsRepository _noteTopicsRepo;
+        private readonly ITopicsRepository _topicsRepo;
+        
+
+        
+        
 
         // Commands:
         public ICommand ToggleBoldCommand { get; }
@@ -75,20 +125,8 @@ namespace Nexus.Desktop.ViewModels
         public ICommand ToggleUnderlineCommand { get; }
         public ICommand AddTopicCommand { get; }
         public ICommand PredictTopicCommand { get; }
+        public ICommand AddSuggestedTopicCommand { get; }
 
-        private string? _predictedTopicName;
-        public string? PredictedTopicName
-        {
-            get => _predictedTopicName;
-            set
-            {
-                this.RaiseAndSetIfChanged(ref _predictedTopicName, value);
-                if(value != null)
-                {
-                    //TODO:
-                }
-            }
-        }
 
         private readonly INoteSaveService _saveService;
         public NoteEditorViewModel(INoteTopicsRepository noteTopicsRepo, ITopicsRepository topicsRepo, TagPredictor tagPredictor, INoteSaveService saveService)
@@ -102,7 +140,7 @@ namespace Nexus.Desktop.ViewModels
             this.WhenAnyValue(
                             vm => vm.CurrentNote!.Title,
                             vm => vm.CurrentNote!.Content)
-                            .Skip(1) // ignore initial load
+                            .Skip(1)
                             .Subscribe(_ =>
                             {
                                 if (CurrentNote != null)
@@ -114,9 +152,10 @@ namespace Nexus.Desktop.ViewModels
 
             _tagPredictor = new TagPredictor(_topicsRepo);
             _ = _tagPredictor.InitializeAsync();
-
+            
             AddTopicCommand = new RelayCommand(async _ => await AddTopicAsync());
             PredictTopicCommand = new RelayCommand(async _ => await PredictTopicAsync());
+            AddSuggestedTopicCommand = new RelayCommand(async param => await AddSuggestedTopic(param  as string));
             // those are like that because trying to apply formatting through the UI thread crashes the app...
             ToggleBoldCommand = new RelayCommand(_ =>
             {
@@ -208,6 +247,25 @@ namespace Nexus.Desktop.ViewModels
 
 
         }
+
+        private async Task AddSuggestedTopic(string? topicName)
+        {
+            if (CurrentNote == null) return;
+
+            if (string.IsNullOrWhiteSpace(topicName))
+                return;
+            string? currentTopicId = await _topicsRepo.GetIdByNameAsync(topicName);
+            if(currentTopicId  == null) return;
+
+            await _noteTopicsRepo.AddTopicToNoteAsync(CurrentNote.Id, currentTopicId);
+            await LoadLinkedTopicsAsync();
+            await PredictTopicAsync();
+
+            // Your logic:
+            // - Add topic to the note
+            // - Update embeddings
+            // - Refresh predictions (later)
+        }
         private async Task LoadLinkedTopicsAsync()
         {
             LinkedTopics.Clear();
@@ -230,7 +288,13 @@ namespace Nexus.Desktop.ViewModels
                 _editor.CloseDocument();
             else
                 _editor.LoadXamlString(note.Content);
+
+            _ = PredictTopicAsync();
+
         }
+
+
+
 
         public Note GetEditedNote()
         {
@@ -277,12 +341,21 @@ namespace Nexus.Desktop.ViewModels
             CurrentNote.Content = _editor.GetFullXamlString();
             CurrentNote.UpdatedAt = DateTime.UtcNow;
         }
-
+        private void ClearPredictions()
+        {
+            PredictedTopics.Clear();
+        }
         private async Task PredictTopicAsync()
         {
             if (CurrentNote == null) return;
-
-            var topTopics = _tagPredictor.PredictTopTopics(CurrentNote, 3);
+            if (string.IsNullOrEmpty(ExtractPlainText(CurrentNote.Content)))
+            {
+                ClearPredictions();
+                return;
+            }
+            PredictedTopics.Clear();
+            var namesOfLinkedTopics = LinkedTopics.Select(t => t.Name).ToList();
+            var topTopics = _tagPredictor.PredictTopTopics(CurrentNote, 3 + LinkedTopics.Count);
             if (topTopics.Count == 0)
             {
                 PredictedTopicName = "No topics available.";
@@ -293,11 +366,70 @@ namespace Nexus.Desktop.ViewModels
             foreach (var (id, score) in topTopics)
             {
                 var name = await _topicsRepo.GetNameByIdAsync(id);
-                lines.Add($"{name ?? "(Unknown)"} ({score:F3})");
+                if (!namesOfLinkedTopics.Contains(name))
+                {
+                    lines.Add($"{name} ({score:F3})");
+                    PredictedTopics.Add(name);
+                }
+                
             }
-            
             PredictedTopicName = string.Join("\n", lines);
         }
+        private async void OnTopicPickerChanged()
+        {
+            if (SelectedTopicPickerItem == null)
+                return;
 
+            if (SelectedTopicPickerItem.IsNew)
+            {
+                AddTopicCommand.Execute(null);
+                await LoadTopicPickerAsync(); // refresh
+                return;
+            }
+
+            // Existing topic selected → just add it to the note
+            if (CurrentNote != null && SelectedTopicPickerItem.TopicId != null)
+            {
+                await _noteTopicsRepo.AddTopicToNoteAsync(CurrentNote.Id, SelectedTopicPickerItem.TopicId);
+                await LoadLinkedTopicsAsync();
+            }
+            SelectedTopicPickerItem = null;
+            TopicPickerSelectedIndex = -1;
+        }
+
+        private async Task LoadTopicPickerAsync()
+        {
+            TopicPickerItems.Clear();
+
+            // First "New Topic..." entry
+            TopicPickerItems.Add(new TopicPickerItem
+            {
+                DisplayName = "➕ New Topic…",
+                IsNew = true
+            });
+
+            var topics = await _topicsRepo.GetAllAsync();
+
+            foreach (var t in topics)
+            {
+                TopicPickerItems.Add(new TopicPickerItem
+                {
+                    DisplayName = t.Name,
+                    TopicId = t.Id,
+                    IsNew = false
+                });
+            }
+        }
+
+        private static string ExtractPlainText(string xaml)
+        {
+            if (string.IsNullOrWhiteSpace(xaml))
+                return string.Empty;
+            string noTags = System.Text.RegularExpressions.Regex.Replace(
+                xaml,
+                "<[^>]+>",
+                string.Empty);
+            return System.Net.WebUtility.HtmlDecode(noTags).Trim();
+        }
     }
 }
