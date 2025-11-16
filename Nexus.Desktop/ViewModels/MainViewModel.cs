@@ -56,11 +56,35 @@ namespace Nexus.Desktop.ViewModels
             }
         }
 
+        private object? _treeSelection;
+        public object? TreeSelection
+        {
+            get => _treeSelection;
+            set
+            {
+                _treeSelection = value;
+                OnPropertyChanged();
+
+                if (value is Note n)
+                {
+                    SelectedNote = n;
+                    SelectedTopic = null;
+                }
+                else if (value is Topic t)
+                {
+                    SelectedTopic = t;
+                    SelectedNote = null;
+                }
+            }
+        }
+
+
         // Commands
         public ICommand DeleteNoteCommand { get; }
         public ICommand SaveNoteCommand { get; }
         public ICommand AddParentNoteCommand { get; }
         public ICommand AddChildNoteCommand { get; }
+        public ICommand RemoveTopicCommand { get; }
 
         private Topic? _selectedTopic;
         public Topic? SelectedTopic
@@ -86,14 +110,21 @@ namespace Nexus.Desktop.ViewModels
             SaveNoteCommand = new RelayCommand(_ => SaveNote());
             AddParentNoteCommand = new RelayCommand(async _ => await AddParentNoteAsync());
             AddChildNoteCommand = new RelayCommand(async _ => await AddChildNoteAsync(), _ => CanAddChildNote());
-            
+            RemoveTopicCommand = new RelayCommand(async _ => await RemoveTopicAsync());
+
         }
 
         public async Task InitializeAsync()
         {
             await LoadNotesAndTopics();
         }
-
+        private async Task RemoveTopicAsync()
+        {
+            await _noteTopicsRepo.DeleteByTopicIdAsync(SelectedTopic!.Id);
+            await _topicsRepo.DeleteAsync(SelectedTopic!.Id);
+            _noteEditor.Predictor.RemoveTopicAsync(SelectedTopic!.Id);
+            await LoadTopicsAsync();
+        }
         private async Task LoadNotesAndTopics()
         {
             await LoadNotesAsync();
