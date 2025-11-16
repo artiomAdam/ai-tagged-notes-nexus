@@ -7,15 +7,22 @@
         x:Class="Nexus.Desktop.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="Knowledge Nexus"
-        Width="900" Height="600">
+        Width="900" Height="600"
+		Background="#0C0C1D">
 	<Grid ColumnDefinitions="320,*">
 		<!-- LEFT PANEL -->
-		<Border Grid.Column="0" Background="#666" Padding="8">
-			<DockPanel>
+		<Border Grid.Column="0" Padding="8">
+			<Border.Background>
+				<LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+					<GradientStop Color="#50c450c4" Offset="0.0" />
+					<GradientStop Color="#00ff00ff" Offset="1.0" />
+				</LinearGradientBrush>
+			</Border.Background>
+			<DockPanel Background="Transparent">
+				
 				<!-- Top Buttons -->
 				<StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8">
 					<Button Content="Add Note" Command="{Binding AddParentNoteCommand}" />
-					<Button Content="Add Child" Command="{Binding AddChildNoteCommand}" />
 					<Button Content="Delete" Command="{CompiledBinding DeleteNoteCommand}"/>
 					<Button Content="Save"   Command="{CompiledBinding SaveNoteCommand}"/>
 				</StackPanel>
@@ -34,14 +41,14 @@
 				<Grid>
 					<!-- Hierarchy mode -->
 					<TreeView x:Name="NotesTree" ItemsSource="{Binding NotesHierarchy}"
-						SelectedItem="{Binding SelectedNote, Mode=TwoWay}"
+						 SelectedItem="{Binding TreeSelection, Mode=TwoWay}"
 							  IsVisible="{Binding IsHierarchyMode}">
 						<TreeView.DataTemplates>
 							<TreeDataTemplate DataType="models:Note" ItemsSource="{Binding Children}">
-								<StackPanel Orientation="Horizontal" Spacing="6">
-									<TextBlock Text="{Binding Title}" VerticalAlignment="Center"/>
+								<Grid ColumnDefinitions="2*,1*">
+									<TextBlock Grid.Column="0" Text="{Binding Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" MaxWidth="150"/>
 
-									<Button Content="＋"
+									<Button Grid.Column="1" Content="＋"
 											Width="20" Height="20" Padding="0" Margin="4,0,0,0"
 											Command="{Binding $parent[Window].DataContext.AddChildNoteCommand}"
 											CommandParameter="{Binding}">
@@ -52,21 +59,67 @@
 											</MultiBinding>
 										</Button.IsVisible>
 									</Button>
-								</StackPanel>
+
+
+								</Grid>
 							</TreeDataTemplate>
 						</TreeView.DataTemplates>
 					</TreeView>
 
-					<!-- Topics mode  -->
-					<TreeView x:Name="TopicsTree" ItemsSource="{Binding TopicsHierarchy}"
-								SelectedItem="{Binding SelectedNote, Mode=TwoWay}"
-								IsVisible="{Binding IsHierarchyMode, 
-											Converter={x:Static utils:BoolInvertConverter.Instance}}">
+					<!-- Topics mode -->
+					<TreeView x:Name="TopicsTree"
+							  ItemsSource="{Binding TopicsHierarchy}"
+							  SelectedItem="{Binding TreeSelection, Mode=TwoWay}"
+							  IsVisible="{Binding IsHierarchyMode, Converter={x:Static utils:BoolInvertConverter.Instance}}">
+						<TreeView.Styles>
+							<!-- remove default TreeViewItem padding so it matches hierarchy spacing -->
+							<Style Selector="TreeViewItem">
+								<Setter Property="Padding" Value="0"/>
+								<Setter Property="Margin" Value="0"/>
+							</Style>
+						</TreeView.Styles>
+
 						<TreeView.DataTemplates>
-							<TreeDataTemplate DataType="models:Topic"
-											ItemsSource="{Binding Notes}">
-								<TextBlock Text="{Binding Name}" FontWeight="Bold"/>
+
+							<!-- Topic as parent -->
+							<TreeDataTemplate DataType="models:Topic" ItemsSource="{Binding Notes}" >
+								<Grid ColumnDefinitions="2*,1*">
+									<TextBlock Grid.Column="0"
+											   Text="{Binding Name}"
+											   FontWeight="Bold"
+											   VerticalAlignment="Center"
+											   TextTrimming="CharacterEllipsis"
+											   TextWrapping="NoWrap"
+											   MaxWidth="150"/>
+
+									<Button Grid.Column="1"
+											Content="−"
+											Width="20" Height="20"
+											Padding="0" Margin="4,0,0,0"
+											Command="{Binding $parent[Window].DataContext.RemoveTopicCommand}"
+											CommandParameter="{Binding}">
+										<Button.IsVisible>
+											<MultiBinding Converter="{x:Static utils:EqualityToBoolConverter.Instance}">
+												<Binding Path="$parent[TreeView].SelectedItem"/>
+												<Binding Path="."/>
+											</MultiBinding>
+										</Button.IsVisible>
+									</Button>
+								</Grid>
 							</TreeDataTemplate>
+
+							<!-- Note as child -->
+							<TreeDataTemplate DataType="models:Note">
+								<Grid ColumnDefinitions="2*,1*">
+									<TextBlock Grid.Column="0"
+											   Text="{Binding Title}"
+											   VerticalAlignment="Center"
+											   TextTrimming="CharacterEllipsis"
+											   TextWrapping="NoWrap"
+											   MaxWidth="150"/>
+								</Grid>
+							</TreeDataTemplate>
+
 						</TreeView.DataTemplates>
 					</TreeView>
 				</Grid>
