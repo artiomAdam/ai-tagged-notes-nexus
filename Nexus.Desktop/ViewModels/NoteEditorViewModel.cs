@@ -69,6 +69,7 @@ namespace Nexus.Desktop.ViewModels
 
         public event Func<Task>? TopicsChanged;
 
+        // Commands:
         public ICommand ToggleBoldCommand { get; }
         public ICommand ToggleItalicCommand { get; }
         public ICommand ToggleUnderlineCommand { get; }
@@ -89,12 +90,14 @@ namespace Nexus.Desktop.ViewModels
             }
         }
 
-        public NoteEditorViewModel(INoteTopicsRepository noteTopicsRepo, ITopicsRepository topicsRepo, TagPredictor tagPredictor)
+        private readonly INoteSaveService _saveService;
+        public NoteEditorViewModel(INoteTopicsRepository noteTopicsRepo, ITopicsRepository topicsRepo, TagPredictor tagPredictor, INoteSaveService saveService)
         {
 
             _noteTopicsRepo = noteTopicsRepo;
             _topicsRepo = topicsRepo;
             _tagPredictor = tagPredictor;
+            _saveService = saveService;
 
             this.WhenAnyValue(
                             vm => vm.CurrentNote!.Title,
@@ -140,6 +143,48 @@ namespace Nexus.Desktop.ViewModels
             });
 
         }
+        public void AttachEditor(RichTextBox editor)
+        {
+            if (_editor == editor)
+                return;
+
+            if (_editor != null)
+                _editor.ImagePasteRequested -= OnImagePasteRequested;
+
+            _editor = editor;
+
+
+            _editor.ImagePasteRequested += OnImagePasteRequested;
+            _editor.KeyDown += OnEditorTextChanged;
+        }
+
+        private int _textChangeCounter = 0;
+        private void OnEditorTextChanged(object? sender, EventArgs e)
+        {
+            // after like 10 changes save
+            if(string.IsNullOrWhiteSpace(ExtractPlainText(_editor!.GetFullXamlString())))
+            {
+                ClearPredictions();
+                return;
+            }
+            // make prediction
+            if(_textChangeCounter < 10)
+            {
+                _textChangeCounter++;
+                return;
+            }
+            _textChangeCounter = 0;
+
+            if (CurrentNote != null)
+            {
+                string content = _editor!.GetFullXamlString();
+                _ = _saveService.SaveAsync(CurrentNote, content);
+                
+                _ = PredictTopicAsync();
+            }
+
+        }
+
 
         private async Task AddTopicAsync()
         {
@@ -199,19 +244,7 @@ namespace Nexus.Desktop.ViewModels
             return CurrentNote;
         }
 
-        public void AttachEditor(RichTextBox editor)
-        {
-            if (_editor == editor)
-                return;
 
-            if (_editor != null)
-                _editor.ImagePasteRequested -= OnImagePasteRequested;
-
-            _editor = editor;
-
-
-            _editor.ImagePasteRequested += OnImagePasteRequested;
-        }
 
         private void OnImagePasteRequested(object? sender, Bitmap bitmap)
         {

@@ -1,5 +1,6 @@
 ﻿using Nexus.Core.Interfaces;
 using Nexus.Core.Models;
+using Nexus.Core.Services;
 using Nexus.Core.Utilities;
 using ReactiveUI;
 using System;
@@ -43,6 +44,10 @@ namespace Nexus.Desktop.ViewModels
             get => _selectedNote;
             set
             {
+                if(_selectedNote != null && _selectedNote != value)
+                {
+                    SaveNote();
+                }
                 if (SetProperty(ref _selectedNote, value))
                 {
                     NoteEditor.LoadNote(value);
@@ -65,13 +70,16 @@ namespace Nexus.Desktop.ViewModels
         }
 
 
-        public MainViewModel(INoteRepository noteRepo, ITopicsRepository topicsRepo, INoteTopicsRepository noteTopicsRepo, NoteEditorViewModel noteEditor)
+        private readonly INoteSaveService _saveService;
+
+        public MainViewModel(INoteRepository noteRepo, ITopicsRepository topicsRepo, INoteTopicsRepository noteTopicsRepo, NoteEditorViewModel noteEditor, INoteSaveService saveService)
         {
             _noteRepo = noteRepo;
             _topicsRepo = topicsRepo;
             _noteTopicsRepo = noteTopicsRepo;
             _noteEditor = noteEditor;
             _noteEditor.TopicsChanged += async () => await LoadTopicsAsync();
+            _saveService = saveService;
 
 
             DeleteNoteCommand = new RelayCommand(async _ => await DeleteNoteAsync());
@@ -151,15 +159,12 @@ namespace Nexus.Desktop.ViewModels
 
         private async void SaveNote()
         {
-            if(SelectedNote != null)
-            {
-                var editedNote = NoteEditor.GetEditedNote();
-                await _noteRepo.UpdateAsync(editedNote);
-                editedNote.HasUnsavedChanges = false;
-                editedNote.UpdatedAt = DateTime.UtcNow;
+            if (SelectedNote == null) return;
 
-                NoteEditor.RaisePropertyChanged(nameof(NoteEditor.FooterText));
-            }
+            var content = NoteEditor.GetEditedNote().Content;
+            await _saveService.SaveAsync(SelectedNote, content);
+
+            NoteEditor.RaisePropertyChanged(nameof(NoteEditor.FooterText));
         }
 
         private async Task DeleteNoteAsync()

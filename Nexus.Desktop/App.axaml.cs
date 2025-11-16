@@ -34,6 +34,7 @@ public partial class App : Application
         sc.AddSingleton<INoteRepository, NoteRepository>();
         sc.AddSingleton<ITopicsRepository, TopicsRepository>();
         sc.AddSingleton<INoteTopicsRepository, NoteTopicsRepository>();
+        sc.AddSingleton<INoteSaveService, NoteSaveService>();
 
         // ViewModels
         sc.AddTransient<MainViewModel>();
