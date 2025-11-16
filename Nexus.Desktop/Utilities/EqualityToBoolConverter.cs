@@ -1,7 +1,8 @@
 ﻿using Avalonia.Data.Converters;
+using Nexus.Core.Models;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
-using Nexus.Core.Models;
 
 namespace Nexus.Desktop.Utilities
 {
@@ -9,11 +10,23 @@ namespace Nexus.Desktop.Utilities
     {
         public static readonly EqualityToBoolConverter Instance = new();
 
-        public object Convert(IList<object?> values, System.Type targetType, object? parameter, CultureInfo culture)
+        public object Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
         {
-            if (values.Count >= 2 && values[0] is Note sel && values[1] is Note cur)
-                return sel.Id == cur.Id;
-            return false;
+            if (values.Count < 2)
+                return false;
+
+            var left = values[0];
+            var right = values[1];
+
+            // Notes
+            if (left is Note ln && right is Note rn)
+                return ln.Id == rn.Id;
+
+            // Topics
+            if (left is Topic lt && right is Topic rt)
+                return lt.Id == rt.Id || lt.Name == rt.Name;
+
+            return Equals(left, right);
         }
     }
 }
