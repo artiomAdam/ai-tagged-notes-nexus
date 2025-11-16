@@ -45,6 +45,11 @@ namespace Nexus.Core.Services
             }
         }
 
+        public void RemoveTopicAsync(string topicId)
+        {
+            _topicEmbeddings.Remove(topicId);
+        }
+
         private static string ExpandTopicForEmbedding(string topicName)
         {
             var cleaned = topicName.Trim().Replace("_", " ").Replace("-", " ");
