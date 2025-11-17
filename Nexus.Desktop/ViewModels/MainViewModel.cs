@@ -206,15 +206,6 @@ namespace Nexus.Desktop.ViewModels
 
         private async Task<List<Note>> LoadNotesAsync()
         {
-            /*var notes = (await _noteRepo.GetAllAsync()).ToList();
-            NotesHierarchy.Clear();
-            var hierarchy = BuildNoteHierarchy(notes);
-            foreach (var n in hierarchy)
-                NotesHierarchy.Add(n);
-
-            ApplyNotesFilter();
-            return notes;*/
-
             var notes = (await _noteRepo.GetAllAsync()).ToList();
             foreach (var n in notes)
                 n.Children.Clear();
@@ -232,7 +223,6 @@ namespace Nexus.Desktop.ViewModels
         {
             var prevSelectedNote = SelectedNote;
 
-            // Load topics + links in parallel
             var topicsTask = _topicsRepo.GetAllAsync();
             var linksTask = _noteTopicsRepo.GetAllLinksAsync();
 
@@ -240,17 +230,14 @@ namespace Nexus.Desktop.ViewModels
 
             var topics = topicsTask.Result.ToList();
 
-            // Use the notes passed from LoadNotesAsync instead of reloading DB
             var notes = allNotes.ToDictionary(n => n.Id);
 
             var links = linksTask.Result;
 
-            // Group mapping once
             var linksByTopic = links
                 .GroupBy(l => l.TopicId)
                 .ToDictionary(g => g.Key, g => g.Select(x => x.NoteId).ToList());
 
-            // Attach notes to each topic
             foreach (var topic in topics)
             {
                 topic.Notes.Clear();
@@ -263,7 +250,6 @@ namespace Nexus.Desktop.ViewModels
                 }
             }
 
-            // UI update once
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
             {
                 TopicsHierarchy.Clear();
@@ -271,7 +257,6 @@ namespace Nexus.Desktop.ViewModels
                     TopicsHierarchy.Add(t);
             });
 
-            // Restore selection
             if (prevSelectedNote != null &&
                 notes.TryGetValue(prevSelectedNote.Id, out var restored))
             {
@@ -423,7 +408,6 @@ namespace Nexus.Desktop.ViewModels
                     break;
             }
 
-            // Replace hierarchy with search results
             NotesHierarchy.Clear();
             foreach (var n in matches)
                 NotesHierarchy.Add(n);
@@ -486,7 +470,6 @@ namespace Nexus.Desktop.ViewModels
         {
             SimilarNotes.Clear();
 
-            // No note selected? Just stop.
             if (SelectedNote == null)
                 return;
 
