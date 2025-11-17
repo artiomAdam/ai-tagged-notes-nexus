@@ -17,7 +17,10 @@ namespace Nexus.Core.Services
             //foreach (var o in _session.OutputMetadata)
             //    Debug.WriteLine(o.Key);
         }
-
+        public Task<float[]> GetEmbeddingAsync(string text)
+        {
+            return Task.Run(() => GetEmbedding(text));
+        }
         public float[] GetEmbedding(string text)
         {
             // e5-base-v2-onnx

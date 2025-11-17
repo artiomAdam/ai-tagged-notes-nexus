@@ -26,20 +26,7 @@ namespace Nexus.Desktop.ViewModels
         // Topics:
             // predictions:
         private readonly TagPredictor _tagPredictor;
-        private string? _predictedTopicName;
         public TagPredictor Predictor => _tagPredictor;
-        public string? PredictedTopicName
-        {
-            get => _predictedTopicName;
-            set
-            {
-                this.RaiseAndSetIfChanged(ref _predictedTopicName, value);
-                if (value != null)
-                {
-                    //TODO: ?
-                }
-            }
-        }
         public ObservableCollection<string> PredictedTopics { get; } = new();
 
 
@@ -114,10 +101,11 @@ namespace Nexus.Desktop.ViewModels
         // Storage:
         private readonly INoteTopicsRepository _noteTopicsRepo;
         private readonly ITopicsRepository _topicsRepo;
-        
 
-        
-        
+        // Services:
+        private readonly INoteSaveService _saveService;
+
+
 
         // Commands:
         public ICommand ToggleBoldCommand { get; }
@@ -126,9 +114,10 @@ namespace Nexus.Desktop.ViewModels
         public ICommand AddTopicCommand { get; }
         public ICommand PredictTopicCommand { get; }
         public ICommand AddSuggestedTopicCommand { get; }
+        public ICommand RemoveTopicCommand { get; }
 
 
-        private readonly INoteSaveService _saveService;
+
         public NoteEditorViewModel(INoteTopicsRepository noteTopicsRepo, ITopicsRepository topicsRepo, TagPredictor tagPredictor, INoteSaveService saveService)
         {
 
@@ -156,7 +145,9 @@ namespace Nexus.Desktop.ViewModels
             AddTopicCommand = new RelayCommand(async _ => await AddTopicAsync());
             PredictTopicCommand = new RelayCommand(async _ => await PredictTopicAsync());
             AddSuggestedTopicCommand = new RelayCommand(async param => await AddSuggestedTopic(param  as string));
-            // those are like that because trying to apply formatting through the UI thread crashes the app...
+            RemoveTopicCommand = new RelayCommand(async param => await RemoveTopicAsync(param as string));
+
+            // those are like that because richtextbox needs to be updated only from the UI thread
             ToggleBoldCommand = new RelayCommand(_ =>
             {
                 Dispatcher.UIThread.Post(() =>
@@ -181,6 +172,19 @@ namespace Nexus.Desktop.ViewModels
                         TextDecorations.Underline));
             });
 
+        }
+
+        
+        public async Task RemoveTopicAsync(string? topicId)
+        {
+            if (CurrentNote == null || topicId == null) return;
+
+            await _noteTopicsRepo.RemoveTopicFromNoteAsync(CurrentNote.Id, topicId);
+            _ = LoadLinkedTopicsAsync();
+            _ = PredictTopicAsync();
+
+            if (TopicsChanged != null)
+                _ = TopicsChanged.Invoke();
         }
         public void AttachEditor(RichTextBox editor)
         {
@@ -240,10 +244,10 @@ namespace Nexus.Desktop.ViewModels
 
             await _tagPredictor.AddOrUpdateTopicAsync(topicId, input);
             await _noteTopicsRepo.AddTopicToNoteAsync(CurrentNote.Id, topicId);
-            await LoadLinkedTopicsAsync();
+            _ = LoadLinkedTopicsAsync();
 
             if (TopicsChanged != null)
-                await TopicsChanged.Invoke();
+                _ = TopicsChanged.Invoke();
 
 
         }
@@ -260,6 +264,8 @@ namespace Nexus.Desktop.ViewModels
             await _noteTopicsRepo.AddTopicToNoteAsync(CurrentNote.Id, currentTopicId);
             await LoadLinkedTopicsAsync();
             await PredictTopicAsync();
+            if (TopicsChanged != null)
+                _ = TopicsChanged.Invoke();
 
             // Your logic:
             // - Add topic to the note
@@ -278,7 +284,7 @@ namespace Nexus.Desktop.ViewModels
                 LinkedTopics.Add(t);
         }
 
-        public void LoadNote(Note note)
+        public void LoadNote(Note? note)
         {
             CurrentNote = note;
             if (note == null) return;
@@ -345,6 +351,8 @@ namespace Nexus.Desktop.ViewModels
         {
             PredictedTopics.Clear();
         }
+
+        
         private async Task PredictTopicAsync()
         {
             if (CurrentNote == null) return;
@@ -353,18 +361,19 @@ namespace Nexus.Desktop.ViewModels
                 ClearPredictions();
                 return;
             }
-            PredictedTopics.Clear();
+            
             var namesOfLinkedTopics = LinkedTopics.Select(t => t.Name).ToList();
-            var topTopics = _tagPredictor.PredictTopTopics(CurrentNote, 3 + LinkedTopics.Count);
+            var topTopics = await _tagPredictor.PredictTopTopics(CurrentNote, 3 + LinkedTopics.Count);
             if (topTopics.Count == 0)
             {
-                PredictedTopicName = "No topics available.";
                 return;
             }
 
             var lines = new List<string>();
+            ClearPredictions();
             foreach (var (id, score) in topTopics)
             {
+                if (PredictedTopics.Count == 3) break;
                 var name = await _topicsRepo.GetNameByIdAsync(id);
                 if (!namesOfLinkedTopics.Contains(name))
                 {
@@ -373,7 +382,6 @@ namespace Nexus.Desktop.ViewModels
                 }
                 
             }
-            PredictedTopicName = string.Join("\n", lines);
         }
         private async void OnTopicPickerChanged()
         {

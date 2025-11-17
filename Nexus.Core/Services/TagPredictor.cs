@@ -1,5 +1,6 @@
 ﻿using Nexus.Core.Interfaces;
 using Nexus.Core.Models;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using static System.Formats.Asn1.AsnWriter;
 
@@ -93,24 +94,38 @@ namespace Nexus.Core.Services
             return bestTopic;
         }
 
-        public List<(string TopicId, double Score)> PredictTopTopics(Note note, int topN = 3)
+        public async Task<List<(string TopicId, double Score)>> PredictTopTopics(Note note, int topN = 3)
         {
+            float LowerThreshold = 0.678f;
             if (_topicEmbeddings.Count == 0)
                 return new();
             string textContent = ExtractPlainText(note.Content);
-            var noteEmb = _embeddingService.GetEmbedding("query: " + textContent);
+            var noteEmb = await _embeddingService.GetEmbeddingAsync("query: " + textContent);
             Normalize(noteEmb);
 
             var scores = new List<(string, double)>();
             foreach (var (topicId, topicEmb) in _topicEmbeddings)
             {
                 double score = CosineSimilarity(noteEmb, topicEmb);
-                scores.Add((topicId, score));
+                if(score > LowerThreshold)
+                    scores.Add((topicId, score));
             }
-
+            //_ = PrintEmbeddings(scores); for debugging
             return scores.OrderByDescending(s => s.Item2)
                          .Take(topN)
                          .ToList();
+        }
+
+        // method for debugging, to see the sopic names and scores...
+        private async Task PrintEmbeddings(List<(string name, double score)> scores)
+        {
+            Debug.WriteLine("\nTopics and Scores:");
+            scores = scores.OrderByDescending(s => s.Item2).ToList();
+            foreach (var (topicId, score) in scores)
+            {
+                var name = await _topicsRepo.GetNameByIdAsync(topicId);
+                Debug.WriteLine($"{name} : {score}");
+            }
         }
 
         private static string ExtractPlainText(string xaml)

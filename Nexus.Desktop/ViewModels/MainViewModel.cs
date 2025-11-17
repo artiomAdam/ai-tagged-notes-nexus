@@ -138,7 +138,7 @@ namespace Nexus.Desktop.ViewModels
             _saveService = saveService;
 
 
-            DeleteNoteCommand = new RelayCommand(async _ => await DeleteNoteAsync());
+            DeleteNoteCommand = new RelayCommand(async param => await DeleteNoteAsync(param as Note));
             SaveNoteCommand = new RelayCommand(_ => SaveNote());
             AddParentNoteCommand = new RelayCommand(async _ => await AddParentNoteAsync());
             AddChildNoteCommand = new RelayCommand(async _ => await AddChildNoteAsync(), _ => CanAddChildNote());
@@ -235,34 +235,37 @@ namespace Nexus.Desktop.ViewModels
             NoteEditor.RaisePropertyChanged(nameof(NoteEditor.FooterText));
         }
 
-        private async Task DeleteNoteAsync()
+        private async Task DeleteNoteAsync(Note? noteToDelete)
         {
-            if (SelectedNote is null) return;
+            if (noteToDelete is null) return;
 
-            if (_isHierarchyMode && SelectedNote.Children.Any())
+            if (_isHierarchyMode && noteToDelete.Children.Any())
             {
-                Console.WriteLine("Cannot delete note with children.");
+                // Cannot delete note with children
                 return;
             }
 
-            await _noteTopicsRepo.DeleteByNoteIdAsync(SelectedNote.Id);
-            await _noteRepo.DeleteAsync(SelectedNote.Id);
+            await _noteTopicsRepo.DeleteByNoteIdAsync(noteToDelete.Id);
+            await _noteRepo.DeleteAsync(noteToDelete.Id);
 
             if (_isHierarchyMode)
             {
-                if (!string.IsNullOrEmpty(SelectedNote.ParentId))
-                    FindParentNote(NotesHierarchy, SelectedNote.ParentId)?.Children.Remove(SelectedNote);
+                if (!string.IsNullOrEmpty(noteToDelete.ParentId))
+                    FindParentNote(NotesHierarchy, noteToDelete.ParentId)?.Children.Remove(noteToDelete);
                 else
-                    NotesHierarchy.Remove(SelectedNote);
+                    NotesHierarchy.Remove(noteToDelete);
             }
             else
             {
-                SelectedTopic?.Notes.Remove(SelectedNote);
+                SelectedTopic?.Notes.Remove(noteToDelete);
             }
 
-            SelectedNote = null;
-            NoteEditor.LoadNote(new Note());
-            await LoadTopicsAsync();
+            if (SelectedNote != null && noteToDelete.Id == SelectedNote.Id)
+            {
+                SelectedNote = null;
+                NoteEditor.LoadNote(new Note());
+            }
+            await LoadTopicsAsync(); // TODO: do we need this here? maybe if we're in notes mode, we don't need to load this and only load on switch to topics mode
         }
 
         private async Task AddParentNoteAsync()
