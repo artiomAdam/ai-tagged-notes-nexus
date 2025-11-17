@@ -13,7 +13,7 @@ namespace Nexus.Desktop;
 
 public partial class App : Application
 {
-    public static IServiceProvider Services { get; private set; }
+    public static IServiceProvider? Services { get; private set; }
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);

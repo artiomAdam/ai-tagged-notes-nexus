@@ -4,12 +4,14 @@
 		xmlns:views="clr-namespace:Nexus.Desktop.Views"
 		xmlns:models="clr-namespace:Nexus.Core.Models;assembly=Nexus.Core"
 		xmlns:utils="clr-namespace:Nexus.Desktop.Utilities"
+		xmlns:vmEnums="clr-namespace:Nexus.Desktop.ViewModels.Enums"
         x:Class="Nexus.Desktop.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="Knowledge Nexus"
-        Width="900" Height="600"
-		Background="#0C0C1D">
-	<Grid ColumnDefinitions="320,*">
+        Width="1400" Height="700"
+		MinWidth="1000" MinHeight="600"
+		Background="#B0B0B0">
+	<Grid ColumnDefinitions="Auto,*">
 		<!-- LEFT PANEL -->
 		<Border Grid.Column="0" Padding="8">
 			<Border.Background>
@@ -18,113 +20,264 @@
 					<GradientStop Color="#00ff00ff" Offset="1.0" />
 				</LinearGradientBrush>
 			</Border.Background>
+
 			<DockPanel Background="Transparent">
-				
-				<!-- Top Buttons -->
-				<StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8">
-					<Button Content="Add Note" Command="{Binding AddParentNoteCommand}" />
-					<Button Content="Delete" Command="{CompiledBinding DeleteNoteCommand}"/>
-					<Button Content="Save"   Command="{CompiledBinding SaveNoteCommand}"/>
-				</StackPanel>
 
-				<!-- Filters header + controls -->
-				<StackPanel DockPanel.Dock="Top" Margin="0,8,0,8" Spacing="4">
-					<Border Background="#3B66B1" Padding="6">
-						<TextBlock Text="Filtering options" Foreground="White" />
+				<!-- ========================= -->
+				<!--       TOP TAB CONTROL     -->
+				<!-- ========================= -->
+				<TabControl DockPanel.Dock="Top"
+							Margin="0,0,0,8"
+							Height="130">
+
+					<!-- ACTIONS TAB -->
+					<TabItem Header="Actions">
+						<StackPanel Orientation="Horizontal" Spacing="8" Margin="8">
+							<Button Content="Add Note" Command="{Binding AddParentNoteCommand}" />
+							<Button Content="Save" Command="{CompiledBinding SaveNoteCommand}"/>
+						</StackPanel>
+					</TabItem>
+
+					<!-- SEARCH TAB -->
+					<TabItem Header="Search">
+						<StackPanel Margin="8" Spacing="6">
+							<TextBox Watermark="Search..." />
+
+							<ComboBox Width="150" SelectedIndex="0">
+								<ComboBoxItem Content="Search by title"/>
+								<ComboBoxItem Content="Search current note"/>
+								<ComboBoxItem Content="Search in all notes"/>
+							</ComboBox>
+						</StackPanel>
+					</TabItem>
+
+					<!-- FILTER TAB -->
+					<TabItem Header="Filter">
+						<StackPanel Margin="4" Spacing="32" Orientation="Horizontal">
+
+							<Border Background="#30000000" Padding="3,0,0,3" CornerRadius="5">
+								<StackPanel Orientation="Vertical"
+											HorizontalAlignment="Center"
+											VerticalAlignment="Center"
+											Spacing="2"
+											Classes="ModeSegment">
+
+									<RadioButton Content="Notes"
+												 GroupName="ModeGroup"
+												 IsChecked="{Binding IsHierarchyMode}"
+												 Classes="ModeOption"
+												 Width="80"/>
+
+									<RadioButton Content="Topics"
+												 GroupName="ModeGroup"
+												 IsChecked="{Binding IsHierarchyMode, Converter={x:Static utils:BoolInvertConverter.Instance}}"
+												 Classes="ModeOption"
+												 Width="80"/>
+
+								</StackPanel>
+							</Border>
+
+							<!-- LABELS -->
+							<StackPanel Orientation="Vertical">
+								<TextBlock Text="Filter Notes"
+										   IsVisible="{Binding IsHierarchyMode}"
+										   FontWeight="Bold"
+										   FontStyle="Italic"
+										   Margin="4,4,0,0"/>
+
+								<TextBlock Text="Filter Topics"
+										   IsVisible="{Binding IsHierarchyMode, Converter={x:Static utils:BoolInvertConverter.Instance}}"
+										   FontWeight="Bold"
+										   FontStyle="Italic"
+										   Margin="4,4,0,0"/>
+							
+								<!-- HIERARCHY MODE FILTERS -->
+								<ComboBox MaxWidth="150"
+										  IsVisible="{Binding IsHierarchyMode}"
+										  SelectionChanged="FilterNotesChanged"
+										  SelectedIndex="0">
+
+									<ComboBoxItem Tag="{x:Static vmEnums:NotesFilterType.AtoZ}"    Content="A → Z"/>
+									<ComboBoxItem Tag="{x:Static vmEnums:NotesFilterType.ZtoA}"    Content="Z → A"/>
+									<ComboBoxItem Tag="{x:Static vmEnums:NotesFilterType.Newest}"  Content="Newest"/>
+									<ComboBoxItem Tag="{x:Static vmEnums:NotesFilterType.Oldest}"  Content="Oldest"/>
+									<ComboBoxItem Tag="{x:Static vmEnums:NotesFilterType.Topic}"   Content="By Topic"/>
+
+								</ComboBox>
+
+
+								<!-- TOPICS MODE FILTERS -->
+								<ComboBox MaxWidth="150"
+										  IsVisible="{Binding IsHierarchyMode, Converter={x:Static utils:BoolInvertConverter.Instance}}"
+										  SelectionChanged="FilterTopicsChanged"
+										  SelectedIndex="0">
+
+									<ComboBoxItem Tag="{x:Static vmEnums:TopicsFilterType.AtoZ}"         Content="A → Z"/>
+									<ComboBoxItem Tag="{x:Static vmEnums:TopicsFilterType.ZtoA}"         Content="Z → A"/>
+									<ComboBoxItem Tag="{x:Static vmEnums:TopicsFilterType.Similarity}"   Content="Similarity"/>
+
+								</ComboBox>
+
+
+							</StackPanel>
+						</StackPanel>
+					</TabItem>
+
+				</TabControl>
+
+
+				<!-- ========================= -->
+				<!-- MAIN CONTENT AREA         -->
+				<!-- ========================= -->
+
+				<Grid RowDefinitions="2*,1*">
+
+					<!-- ========================= -->
+					<!-- UPPER TREE AREA (2/3)    -->
+					<!-- ========================= -->
+					<Grid Row="0">
+
+						<!-- Notes Hierarchy mode -->
+						<TreeView x:Name="NotesTree"
+								  ItemsSource="{Binding NotesHierarchy}"
+								  SelectedItem="{Binding TreeSelection, Mode=TwoWay}"
+								  IsVisible="{Binding IsHierarchyMode}">
+							<TreeView.DataTemplates>
+								<TreeDataTemplate DataType="models:Note" ItemsSource="{Binding Children}">
+									<Grid ColumnDefinitions="2*,1*,1*">
+										<TextBlock Grid.Column="0"
+												   Text="{Binding Title}"
+												   VerticalAlignment="Center"
+												   TextTrimming="CharacterEllipsis"
+												   TextWrapping="NoWrap"
+												   MaxWidth="150"/>
+
+										<!-- Add child button -->
+										<Button Grid.Column="1" Content="＋" VerticalAlignment="Center" HorizontalAlignment="Center" 
+												Width="20" Height="20" 
+												Padding="0" Margin="4,0,0,0" 
+												Command="{Binding $parent[Window].DataContext.AddChildNoteCommand}" 
+												CommandParameter="{Binding}">
+											<Button.IsVisible>
+												<MultiBinding Converter="{x:Static utils:EqualityToBoolConverter.Instance}">
+													<Binding Path="$parent[TreeView].SelectedItem"/>
+													<Binding Path="."/>
+												</MultiBinding>
+											</Button.IsVisible>
+										</Button>
+
+										<!-- Delete note button 🗑️ -->
+										<Button Grid.Column="2" Width="24" Height="24" Padding="0" Margin="0,0,0,0" 
+												Command="{Binding $parent[Window].DataContext.DeleteNoteCommand}" 
+												CommandParameter="{Binding}" 
+												Background="#00123456">
+											<TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" Foreground="Red" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" >
+												<TextBlock.Effect>
+													<DropShadowEffect Color="Yellow" BlurRadius="3" Opacity="0.8" OffsetX="0" OffsetY ="0"/>
+												</TextBlock.Effect>
+											</TextBlock>
+											<Button.IsVisible>
+												<MultiBinding Converter="{x:Static utils:EqualityToBoolConverter.Instance}">
+													<Binding Path="$parent[TreeView].SelectedItem"/>
+													<Binding Path="."/>
+												</MultiBinding>
+											</Button.IsVisible>
+										</Button>
+
+									</Grid>
+								</TreeDataTemplate>
+							</TreeView.DataTemplates>
+						</TreeView>
+
+						<!-- Topics mode -->
+						<TreeView x:Name="TopicsTree"
+								  ItemsSource="{Binding TopicsHierarchy}"
+								  SelectedItem="{Binding TreeSelection, Mode=TwoWay}"
+								  IsVisible="{Binding IsHierarchyMode, Converter={x:Static utils:BoolInvertConverter.Instance}}">
+							<TreeView.Styles>
+								<Style Selector="TreeViewItem">
+									<Setter Property="Padding" Value="0"/>
+									<Setter Property="Margin" Value="0"/>
+								</Style>
+							</TreeView.Styles>
+
+							<TreeView.DataTemplates>
+
+								<!-- Topic parent -->
+								<TreeDataTemplate DataType="models:Topic" ItemsSource="{Binding Notes}">
+									<Grid ColumnDefinitions="2*,1*">
+										<TextBlock Grid.Column="0"
+												   Text="{Binding Name}"
+												   FontWeight="Bold"
+												   VerticalAlignment="Center"
+												   TextTrimming="CharacterEllipsis"
+												   TextWrapping="NoWrap"
+												   MaxWidth="150"/>
+
+										<Button Grid.Column="1"
+												Content="−"
+												Width="20" Height="20"
+												Padding="0" Margin="4,0,0,0"
+												CommandParameter="{Binding}">
+											<Button.IsVisible>
+												<MultiBinding Converter="{x:Static utils:EqualityToBoolConverter.Instance}">
+													<Binding Path="$parent[TreeView].SelectedItem"/>
+													<Binding Path="."/>
+												</MultiBinding>
+											</Button.IsVisible>
+										</Button>
+									</Grid>
+								</TreeDataTemplate>
+
+								<!-- Note as child -->
+								<TreeDataTemplate DataType="models:Note">
+									<Grid ColumnDefinitions="2*,1*">
+										<TextBlock Grid.Column="0"
+												   Text="{Binding Title}"
+												   VerticalAlignment="Center"
+												   TextTrimming="CharacterEllipsis"
+												   TextWrapping="NoWrap"
+												   MaxWidth="150"/>
+									</Grid>
+								</TreeDataTemplate>
+
+							</TreeView.DataTemplates>
+						</TreeView>
+
+					</Grid>
+
+
+					<!-- ========================= -->
+					<!-- SIMILAR NOTES AREA (1/3) -->
+					<!-- ========================= -->
+					<Border Grid.Row="1"
+							Margin="0,12,0,0"
+							Background="#22000000"
+							Padding="6"
+							CornerRadius="4">
+
+						<StackPanel>
+							<TextBlock Text="Similar Notes"
+									   FontSize="14"
+									   FontWeight="Bold"
+									   Margin="0,0,0,6"/>
+
+							<!-- Placeholder list -->
+							<ListBox>
+								<ListBoxItem Content="(placeholder) similar note A"/>
+								<ListBoxItem Content="(placeholder) similar note B"/>
+								<ListBoxItem Content="(placeholder) similar note C"/>
+							</ListBox>
+
+						</StackPanel>
+
 					</Border>
-					<!-- put real filter controls here -->
-					<ToggleSwitch Content="Hierarchy mode"
-								  IsChecked="{Binding IsHierarchyMode}"/>
-				</StackPanel>
 
-				<!-- Notes list: switch between hierarchy and topics list -->
-				<Grid>
-					<!-- Hierarchy mode -->
-					<TreeView x:Name="NotesTree" ItemsSource="{Binding NotesHierarchy}"
-						 SelectedItem="{Binding TreeSelection, Mode=TwoWay}"
-							  IsVisible="{Binding IsHierarchyMode}">
-						<TreeView.DataTemplates>
-							<TreeDataTemplate DataType="models:Note" ItemsSource="{Binding Children}">
-								<Grid ColumnDefinitions="2*,1*">
-									<TextBlock Grid.Column="0" Text="{Binding Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" MaxWidth="150"/>
-
-									<Button Grid.Column="1" Content="＋"
-											Width="20" Height="20" Padding="0" Margin="4,0,0,0"
-											Command="{Binding $parent[Window].DataContext.AddChildNoteCommand}"
-											CommandParameter="{Binding}">
-										<Button.IsVisible>
-											<MultiBinding Converter="{x:Static utils:EqualityToBoolConverter.Instance}">
-												<Binding Path="$parent[TreeView].SelectedItem"/>
-												<Binding Path="."/>
-											</MultiBinding>
-										</Button.IsVisible>
-									</Button>
-
-
-								</Grid>
-							</TreeDataTemplate>
-						</TreeView.DataTemplates>
-					</TreeView>
-
-					<!-- Topics mode -->
-					<TreeView x:Name="TopicsTree"
-							  ItemsSource="{Binding TopicsHierarchy}"
-							  SelectedItem="{Binding TreeSelection, Mode=TwoWay}"
-							  IsVisible="{Binding IsHierarchyMode, Converter={x:Static utils:BoolInvertConverter.Instance}}">
-						<TreeView.Styles>
-							<!-- remove default TreeViewItem padding so it matches hierarchy spacing -->
-							<Style Selector="TreeViewItem">
-								<Setter Property="Padding" Value="0"/>
-								<Setter Property="Margin" Value="0"/>
-							</Style>
-						</TreeView.Styles>
-
-						<TreeView.DataTemplates>
-
-							<!-- Topic as parent -->
-							<TreeDataTemplate DataType="models:Topic" ItemsSource="{Binding Notes}" >
-								<Grid ColumnDefinitions="2*,1*">
-									<TextBlock Grid.Column="0"
-											   Text="{Binding Name}"
-											   FontWeight="Bold"
-											   VerticalAlignment="Center"
-											   TextTrimming="CharacterEllipsis"
-											   TextWrapping="NoWrap"
-											   MaxWidth="150"/>
-
-									<Button Grid.Column="1"
-											Content="−"
-											Width="20" Height="20"
-											Padding="0" Margin="4,0,0,0"
-											Command="{Binding $parent[Window].DataContext.RemoveTopicCommand}"
-											CommandParameter="{Binding}">
-										<Button.IsVisible>
-											<MultiBinding Converter="{x:Static utils:EqualityToBoolConverter.Instance}">
-												<Binding Path="$parent[TreeView].SelectedItem"/>
-												<Binding Path="."/>
-											</MultiBinding>
-										</Button.IsVisible>
-									</Button>
-								</Grid>
-							</TreeDataTemplate>
-
-							<!-- Note as child -->
-							<TreeDataTemplate DataType="models:Note">
-								<Grid ColumnDefinitions="2*,1*">
-									<TextBlock Grid.Column="0"
-											   Text="{Binding Title}"
-											   VerticalAlignment="Center"
-											   TextTrimming="CharacterEllipsis"
-											   TextWrapping="NoWrap"
-											   MaxWidth="150"/>
-								</Grid>
-							</TreeDataTemplate>
-
-						</TreeView.DataTemplates>
-					</TreeView>
 				</Grid>
+
 			</DockPanel>
 		</Border>
+
 
 		<!-- RIGHT SIDE: the whole editor area -->
 		<views:NoteEditorView Grid.Column="1"

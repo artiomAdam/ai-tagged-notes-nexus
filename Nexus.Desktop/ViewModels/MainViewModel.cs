@@ -2,6 +2,7 @@
 using Nexus.Core.Models;
 using Nexus.Core.Services;
 using Nexus.Core.Utilities;
+using Nexus.Desktop.ViewModels.Enums;
 using ReactiveUI;
 using System;
 using System.Collections.Generic;
@@ -14,47 +15,42 @@ namespace Nexus.Desktop.ViewModels
 {
     public class MainViewModel : ObservableObject
     {
+        public ObservableCollection<Note> SimilarNotes { get; private set; } = new();
         private readonly INoteRepository _noteRepo;
 
         private readonly NoteEditorViewModel _noteEditor;
-
-        private bool _isHierarchyMode = true;
-        public bool IsHierarchyMode
-        {
-            get => _isHierarchyMode;
-            set
-            {
-                if (SetProperty(ref _isHierarchyMode, value))
-                    ((RelayCommand)AddChildNoteCommand).RaiseCanExecuteChanged();
-            }
-        }
         public NoteEditorViewModel NoteEditor
         {
             get => _noteEditor;
         }
+
+        
+       
         private Note? _selectedNote;
-        public ObservableCollection<Note> NotesHierarchy { get; private set; } = new();
-        public ObservableCollection<Topic> TopicsHierarchy { get; private set; } = new();
-
-        private readonly INoteTopicsRepository _noteTopicsRepo;
-        private readonly ITopicsRepository _topicsRepo;
-
         public Note? SelectedNote
         {
             get => _selectedNote;
             set
             {
-                if(_selectedNote != null && _selectedNote != value)
+                if (_selectedNote != null && _selectedNote != value)
                 {
                     SaveNote();
                 }
                 if (SetProperty(ref _selectedNote, value))
                 {
                     NoteEditor.LoadNote(value);
+                    UpdateSimilarNotes();
                     ((RelayCommand)AddChildNoteCommand).RaiseCanExecuteChanged();
                 }
             }
         }
+        public ObservableCollection<Note> NotesHierarchy { get; private set; } = new();
+        public ObservableCollection<Topic> TopicsHierarchy { get; private set; } = new();
+
+        private readonly INoteTopicsRepository _noteTopicsRepo;
+        private readonly ITopicsRepository _topicsRepo;
+
+        
 
         private object? _treeSelection;
         public object? TreeSelection
@@ -78,6 +74,48 @@ namespace Nexus.Desktop.ViewModels
             }
         }
 
+        private Topic? _selectedTopic;
+        public Topic? SelectedTopic
+        {
+            get => _selectedTopic;
+            set => SetProperty(ref _selectedTopic, value);
+        }
+
+
+        private NotesFilterType _selectedNotesFilter = NotesFilterType.AtoZ;
+        public NotesFilterType SelectedNotesFilter
+        {
+            get => _selectedNotesFilter;
+            set
+            {
+                if (SetProperty(ref _selectedNotesFilter, value))
+                    ApplyNotesFilter();
+            }
+        }
+
+        private TopicsFilterType _selectedTopicsFilter = TopicsFilterType.AtoZ;
+        public TopicsFilterType SelectedTopicsFilter
+        {
+            get => _selectedTopicsFilter;
+            set
+            {
+                if (SetProperty(ref _selectedTopicsFilter, value))
+                    ApplyTopicsFilter();
+            }
+        }
+        private bool _isHierarchyMode = true;
+        public bool IsHierarchyMode
+        {
+            get => _isHierarchyMode;
+            set
+            {
+                if (SetProperty(ref _isHierarchyMode, value))
+                    ((RelayCommand)AddChildNoteCommand).RaiseCanExecuteChanged();
+            }
+        }
+
+        
+
 
         // Commands
         public ICommand DeleteNoteCommand { get; }
@@ -86,12 +124,6 @@ namespace Nexus.Desktop.ViewModels
         public ICommand AddChildNoteCommand { get; }
         public ICommand RemoveTopicCommand { get; }
 
-        private Topic? _selectedTopic;
-        public Topic? SelectedTopic
-        {
-            get => _selectedTopic;
-            set => SetProperty(ref _selectedTopic, value);
-        }
 
 
         private readonly INoteSaveService _saveService;
@@ -116,6 +148,8 @@ namespace Nexus.Desktop.ViewModels
 
         public async Task InitializeAsync()
         {
+            
+            
             await LoadNotesAndTopics();
         }
         private async Task RemoveTopicAsync()
@@ -138,6 +172,8 @@ namespace Nexus.Desktop.ViewModels
             var hierarchy = BuildNoteHierarchy(notes);
             foreach (var n in hierarchy)
                 NotesHierarchy.Add(n);
+
+            ApplyNotesFilter();
         }
 
         private async Task LoadTopicsAsync()
@@ -174,6 +210,7 @@ namespace Nexus.Desktop.ViewModels
                     NoteEditor.LoadNote(restored);
                 }
             }
+            ApplyTopicsFilter();
         }
 
         private ObservableCollection<Note> BuildNoteHierarchy(IEnumerable<Note> flatNotes)
@@ -289,6 +326,53 @@ namespace Nexus.Desktop.ViewModels
                     return found;
             }
             return null;
+        }
+
+        private void ApplyNotesFilter()
+        {
+            
+
+            var sorted = SelectedNotesFilter switch
+            {
+                NotesFilterType.AtoZ => NotesHierarchy.OrderBy(n => n.Title),
+                NotesFilterType.ZtoA => NotesHierarchy.OrderByDescending(n => n.Title),
+                NotesFilterType.Newest => NotesHierarchy.OrderByDescending(n => n.CreatedAt),
+                NotesFilterType.Oldest => NotesHierarchy.OrderBy(n => n.CreatedAt),
+                NotesFilterType.Topic => NotesHierarchy.OrderBy(n => n.Title), // placeholder
+                _ => NotesHierarchy.AsEnumerable()
+            };
+
+            NotesHierarchy = new ObservableCollection<Note>(sorted);
+            OnPropertyChanged(nameof(NotesHierarchy));
+        }
+
+        private void ApplyTopicsFilter()
+        {
+            
+
+            var sorted = SelectedTopicsFilter switch
+            {
+                TopicsFilterType.AtoZ => TopicsHierarchy.OrderBy(t => t.Name),
+                TopicsFilterType.ZtoA => TopicsHierarchy.OrderByDescending(t => t.Name),
+                TopicsFilterType.Similarity => TopicsHierarchy.AsEnumerable(), // placeholder
+                _ => TopicsHierarchy.AsEnumerable()
+            };
+
+
+            TopicsHierarchy = new ObservableCollection<Topic>(sorted);
+            OnPropertyChanged(nameof(TopicsHierarchy));
+        }
+
+        private void UpdateSimilarNotes()
+        {
+            SimilarNotes.Clear();
+
+            // No note selected? Just stop.
+            if (SelectedNote == null)
+                return;
+
+            // TODO: Real similarity using embeddings
+            // For now, leave empty so UI runs with no errors.
         }
     }
 }
