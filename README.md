@@ -8,7 +8,7 @@ Due to size limits, the model is not included in the repository.
 
 
 
-\###Download the ONNX model from HuggingFace:
+\### Download the ONNX model from HuggingFace:
 
 
 
@@ -40,7 +40,6 @@ Nexus.Core/
 
 
 
-
-
-This ensures the application can load the model at runtime.
+otherwise, the application would crash on startup.
+The model was not 
 
