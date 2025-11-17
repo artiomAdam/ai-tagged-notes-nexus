@@ -14,6 +14,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Reactive.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Input;
 
@@ -185,6 +186,9 @@ namespace Nexus.Desktop.ViewModels
 
             if (TopicsChanged != null)
                 _ = TopicsChanged.Invoke();
+
+
+            
         }
         public void AttachEditor(RichTextBox editor)
         {
@@ -401,6 +405,36 @@ namespace Nexus.Desktop.ViewModels
             TopicPickerSelectedIndex = -1;
         }
 
+        public void HighlightSearchHit(string query)
+        {
+            if (_editor == null || string.IsNullOrWhiteSpace(query))
+                return;
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                var doc = _editor.FlowDocument;
+                if (doc == null)
+                    return;
+
+                string text = doc.Text;  // AvRichTextBox gives full text here
+
+                var matches = System.Text.RegularExpressions.Regex.Matches(text, Regex.Escape(query), RegexOptions.IgnoreCase);
+
+                // Choose match that is AFTER current selection
+                var currentEnd = doc.Selection.End;
+                var match = matches.Cast<Match>().FirstOrDefault(m => m.Index >= currentEnd);
+
+                // If none found → wrap to beginning
+                match ??= matches.Cast<Match>().FirstOrDefault();
+
+                if (match != null)
+                {
+                    doc.Select(match.Index, query.Length);
+                    _editor.ScrollToSelection();
+                }
+                // If no matches: do nothing (you can add UI feedback later)
+            });
+        }
         private async Task LoadTopicPickerAsync()
         {
             TopicPickerItems.Clear();

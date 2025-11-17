@@ -397,9 +397,13 @@ namespace Nexus.Desktop.ViewModels
                         !string.IsNullOrEmpty(SelectedNote.Content) &&
                         SelectedNote.Content.ToLower().Contains(query))
                     {
-                        matches = new[] { SelectedNote };
+                        //matches = new[] { SelectedNote };
+                        // Here, we need to select in the editor, so probably should hook up to some editor event
+                        NoteEditor.HighlightSearchHit(query);
+                        return;
                     }
-                    break;
+                    return;
+                    
 
                 case SearchModeType.AllNotes:
                     matches = _allNotesCache.Where(n =>
