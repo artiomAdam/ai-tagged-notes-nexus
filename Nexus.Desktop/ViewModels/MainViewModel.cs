@@ -18,6 +18,7 @@ namespace Nexus.Desktop.ViewModels
         public ObservableCollection<Note> SimilarNotes { get; private set; } = new();
         private readonly INoteRepository _noteRepo;
 
+
         private readonly NoteEditorViewModel _noteEditor;
         public NoteEditorViewModel NoteEditor
         {
@@ -114,7 +115,36 @@ namespace Nexus.Desktop.ViewModels
             }
         }
 
-        
+        private List<Note> _allNotesCache = new();
+
+        private string _searchText = "";
+        public string SearchText
+        {
+            get => _searchText;
+            set
+            {
+                if (SetProperty(ref _searchText, value))
+                {
+                    ((RelayCommand)SearchCommand).RaiseCanExecuteChanged();
+
+                    if (string.IsNullOrWhiteSpace(value))
+                        _ = RestoreFullHierarchyAsync();
+                }
+            }
+        }
+
+        // bound to ComboBox.SelectedIndex
+        private int _searchModeIndex;
+        public int SearchModeIndex
+        {
+            get => _searchModeIndex;
+            set => SetProperty(ref _searchModeIndex, value);
+        }
+
+        // helper to map index to enum
+        private SearchModeType CurrentSearchMode => (SearchModeType)_searchModeIndex;
+
+
 
 
         // Commands
@@ -123,7 +153,8 @@ namespace Nexus.Desktop.ViewModels
         public ICommand AddParentNoteCommand { get; }
         public ICommand AddChildNoteCommand { get; }
         public ICommand RemoveTopicCommand { get; }
-
+        public ICommand SearchCommand { get; }
+        public ICommand ClearSearchCommand { get; }
 
 
         private readonly INoteSaveService _saveService;
@@ -241,7 +272,7 @@ namespace Nexus.Desktop.ViewModels
 
             if (_isHierarchyMode && noteToDelete.Children.Any())
             {
-                // Cannot delete note with children
+                // TODO: currently cannot delete note with children, should we allow this?
                 return;
             }
 
@@ -317,6 +348,49 @@ namespace Nexus.Desktop.ViewModels
             NoteEditor.LoadNote(child);
         }
 
+        private async Task SearchAsync()
+        {
+            var query = SearchText.Trim().ToLower();
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                await RestoreFullHierarchyAsync();
+                return;
+            }
+
+            IEnumerable<Note> matches = Enumerable.Empty<Note>();
+
+            switch (CurrentSearchMode)
+            {
+                case SearchModeType.ByTitle:
+                    matches = _allNotesCache.Where(n =>
+                        !string.IsNullOrEmpty(n.Title) &&
+                        n.Title.ToLower().Contains(query));
+                    break;
+
+                case SearchModeType.CurrentNote:
+                    if (SelectedNote != null &&
+                        !string.IsNullOrEmpty(SelectedNote.Content) &&
+                        SelectedNote.Content.ToLower().Contains(query))
+                    {
+                        matches = new[] { SelectedNote };
+                    }
+                    break;
+
+                case SearchModeType.AllNotes:
+                    matches = _allNotesCache.Where(n =>
+                        !string.IsNullOrEmpty(n.Content) &&
+                        n.Content.ToLower().Contains(query));
+                    break;
+            }
+
+            // Replace hierarchy with search results
+            NotesHierarchy.Clear();
+            foreach (var n in matches)
+                NotesHierarchy.Add(n);
+
+            OnPropertyChanged(nameof(NotesHierarchy));
+        }
+
         private Note? FindParentNote(IEnumerable<Note> notes, string parentId)
         {
             foreach (var n in notes)
@@ -349,6 +423,8 @@ namespace Nexus.Desktop.ViewModels
             OnPropertyChanged(nameof(NotesHierarchy));
         }
 
+
+
         private void ApplyTopicsFilter()
         {
             
@@ -376,6 +452,11 @@ namespace Nexus.Desktop.ViewModels
 
             // TODO: Real similarity using embeddings
             // For now, leave empty so UI runs with no errors.
+        }
+
+        private async Task RestoreFullHierarchyAsync()
+        {
+            var notes = await LoadNotesAsync();
         }
     }
 }
