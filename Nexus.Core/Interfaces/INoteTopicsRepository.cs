@@ -8,6 +8,7 @@
         Task<IEnumerable<string>> GetNotesForTopicAsync(string topicId);
         Task DeleteByNoteIdAsync(string noteId);
         Task DeleteByTopicIdAsync(string topicId);
+        Task<IEnumerable<(string TopicId, string NoteId)>> GetAllLinksAsync();
 
     }
 }

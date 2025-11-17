@@ -165,7 +165,11 @@ namespace Nexus.Desktop.ViewModels
             _topicsRepo = topicsRepo;
             _noteTopicsRepo = noteTopicsRepo;
             _noteEditor = noteEditor;
-            _noteEditor.TopicsChanged += async () => await LoadTopicsAsync();
+            _noteEditor.TopicsChanged += async () =>
+            {
+                var notes = await _noteRepo.GetAllAsync();
+                await LoadTopicsAsync(notes.ToList());
+            };
             _saveService = saveService;
 
 
@@ -174,73 +178,107 @@ namespace Nexus.Desktop.ViewModels
             AddParentNoteCommand = new RelayCommand(async _ => await AddParentNoteAsync());
             AddChildNoteCommand = new RelayCommand(async _ => await AddChildNoteAsync(), _ => CanAddChildNote());
             RemoveTopicCommand = new RelayCommand(async _ => await RemoveTopicAsync());
+            SearchCommand = new RelayCommand(async _ => await SearchAsync(), _ => !string.IsNullOrWhiteSpace(SearchText));
+
+             ClearSearchCommand = new RelayCommand(async _ =>
+             {
+                 SearchText = "";
+                await RestoreFullHierarchyAsync();
+             });
 
         }
 
         public async Task InitializeAsync()
         {
+            var notes = await LoadNotesAsync();
+            _allNotesCache = notes.ToList();
+            await LoadTopicsAsync(notes);
             
-            
-            await LoadNotesAndTopics();
         }
         private async Task RemoveTopicAsync()
         {
             await _noteTopicsRepo.DeleteByTopicIdAsync(SelectedTopic!.Id);
             await _topicsRepo.DeleteAsync(SelectedTopic!.Id);
             _noteEditor.Predictor.RemoveTopicAsync(SelectedTopic!.Id);
-            await LoadTopicsAsync();
-        }
-        private async Task LoadNotesAndTopics()
-        {
-            await LoadNotesAsync();
-            await LoadTopicsAsync();
+            var notes = await _noteRepo.GetAllAsync(); 
+            await LoadTopicsAsync(notes.ToList());
         }
 
-        private async Task LoadNotesAsync()
+        private async Task<List<Note>> LoadNotesAsync()
         {
-            var notes = (await _noteRepo.GetAllAsync()).ToList();
+            /*var notes = (await _noteRepo.GetAllAsync()).ToList();
             NotesHierarchy.Clear();
             var hierarchy = BuildNoteHierarchy(notes);
             foreach (var n in hierarchy)
                 NotesHierarchy.Add(n);
 
             ApplyNotesFilter();
+            return notes;*/
+
+            var notes = (await _noteRepo.GetAllAsync()).ToList();
+            foreach (var n in notes)
+                n.Children.Clear();
+            var hierarchy = BuildNoteHierarchy(notes);
+            NotesHierarchy.Clear();
+            foreach (var r in hierarchy)
+                NotesHierarchy.Add(r);
+
+            ApplyNotesFilter();
+
+            return notes;  
         }
 
-        private async Task LoadTopicsAsync()
+        private async Task LoadTopicsAsync(List<Note> allNotes)
         {
             var prevSelectedNote = SelectedNote;
-            var topics = (await _topicsRepo.GetAllAsync()).ToList();
-            var noteMap = (await _noteRepo.GetAllAsync()).ToDictionary(n => n.Id);
 
-            // switch to UI thread for collection updates
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                TopicsHierarchy.Clear();
-            });
+            // Load topics + links in parallel
+            var topicsTask = _topicsRepo.GetAllAsync();
+            var linksTask = _noteTopicsRepo.GetAllLinksAsync();
 
+            await Task.WhenAll(topicsTask, linksTask);
+
+            var topics = topicsTask.Result.ToList();
+
+            // Use the notes passed from LoadNotesAsync instead of reloading DB
+            var notes = allNotes.ToDictionary(n => n.Id);
+
+            var links = linksTask.Result;
+
+            // Group mapping once
+            var linksByTopic = links
+                .GroupBy(l => l.TopicId)
+                .ToDictionary(g => g.Key, g => g.Select(x => x.NoteId).ToList());
+
+            // Attach notes to each topic
             foreach (var topic in topics)
             {
                 topic.Notes.Clear();
-                var noteIds = await _noteTopicsRepo.GetNotesForTopicAsync(topic.Id);
-                foreach (var id in noteIds)
-                    if (noteMap.TryGetValue(id, out var note))
-                        topic.Notes.Add(note);
 
-                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                if (linksByTopic.TryGetValue(topic.Id, out var noteIds))
                 {
-                    TopicsHierarchy.Add(topic);
-                });
-            }
-            if (prevSelectedNote != null)
-            {
-                var restored = noteMap.TryGetValue(prevSelectedNote.Id, out var found) ? found : null;
-                if (restored != null)
-                {
-                    SelectedNote = restored;
-                    NoteEditor.LoadNote(restored);
+                    foreach (var id in noteIds)
+                        if (notes.TryGetValue(id, out var n))
+                            topic.Notes.Add(n);
                 }
             }
+
+            // UI update once
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                TopicsHierarchy.Clear();
+                foreach (var t in topics)
+                    TopicsHierarchy.Add(t);
+            });
+
+            // Restore selection
+            if (prevSelectedNote != null &&
+                notes.TryGetValue(prevSelectedNote.Id, out var restored))
+            {
+                SelectedNote = restored;
+                NoteEditor.LoadNote(restored);
+            }
+
             ApplyTopicsFilter();
         }
 
@@ -249,6 +287,7 @@ namespace Nexus.Desktop.ViewModels
             var lookup = flatNotes.ToDictionary(n => n.Id);
             foreach (var note in flatNotes)
             {
+                note.Children.Clear();
                 if (!string.IsNullOrEmpty(note.ParentId) && lookup.TryGetValue(note.ParentId, out var parent))
                     parent.Children.Add(note);
             }
@@ -296,7 +335,8 @@ namespace Nexus.Desktop.ViewModels
                 SelectedNote = null;
                 NoteEditor.LoadNote(new Note());
             }
-            await LoadTopicsAsync(); // TODO: do we need this here? maybe if we're in notes mode, we don't need to load this and only load on switch to topics mode
+            var notes = await _noteRepo.GetAllAsync();
+            await LoadTopicsAsync(notes.ToList()); ; // TODO: do we need this here? maybe if we're in notes mode, we don't need to load this and only load on switch to topics mode
         }
 
         private async Task AddParentNoteAsync()

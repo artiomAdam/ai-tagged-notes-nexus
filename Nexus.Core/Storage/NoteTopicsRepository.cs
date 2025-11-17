@@ -78,5 +78,19 @@ namespace Nexus.Core.Storage
             cmd.Parameters.AddWithValue("topicId", topicId);
             await cmd.ExecuteNonQueryAsync();
         }
+
+        public async Task<IEnumerable<(string TopicId, string NoteId)>> GetAllLinksAsync()
+        {
+            var links = new List<(string, string)>();
+            using var conn = _dbContext.CreateConnection();
+            var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT TopicId, NoteId FROM " + _table;
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                links.Add((reader.GetString(0), reader.GetString(1)));
+            }
+            return links;
+        }
     }
 }

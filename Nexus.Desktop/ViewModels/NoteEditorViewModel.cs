@@ -267,10 +267,6 @@ namespace Nexus.Desktop.ViewModels
             if (TopicsChanged != null)
                 _ = TopicsChanged.Invoke();
 
-            // Your logic:
-            // - Add topic to the note
-            // - Update embeddings
-            // - Refresh predictions (later)
         }
         private async Task LoadLinkedTopicsAsync()
         {

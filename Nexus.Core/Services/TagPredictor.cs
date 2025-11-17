@@ -55,7 +55,7 @@ namespace Nexus.Core.Services
         {
             var cleaned = topicName.Trim().Replace("_", " ").Replace("-", " ");
 
-            return $"{cleaned}: concept, ideas, things, and activities related to {cleaned.ToLowerInvariant()}";
+            return $"{cleaned}: concept, ideas, things, related to {cleaned.ToLowerInvariant()}";
         }
 
         public async Task AddOrUpdateTopicAsync(string topicId, string topicName)
