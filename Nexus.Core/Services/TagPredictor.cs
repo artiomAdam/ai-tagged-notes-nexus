@@ -67,36 +67,9 @@ namespace Nexus.Core.Services
             _topicEmbeddings[topicId] = emb;
         }
 
-        public async Task<string?> PredictTopic(Note note, double threshold = 0.2)
+
+        public async Task<List<(string TopicId, double Score)>> PredictTopTopics(Note note, int topN = 3, float LowerThreshold=0.6f)
         {
-            if (_topicEmbeddings.Count == 0)
-                return null;
-
-            var noteEmb = _embeddingService.GetEmbedding("query: " + note.Content);
-            Normalize(noteEmb);
-
-            double bestScore = threshold;
-            string? bestTopic = null;
-
-            System.Diagnostics.Debug.WriteLine($"Predictions:");
-            foreach (var (topicId, topicEmb) in _topicEmbeddings)
-            {
-                double score = CosineSimilarity(noteEmb, topicEmb);
-                var topicName = await _topicsRepo.GetNameByIdAsync(topicId);
-                System.Diagnostics.Debug.WriteLine($"{topicName} → {score:F3}");
-                if (score > bestScore)
-                {
-                    bestScore = score;
-                    bestTopic = topicId;
-                }
-            }
-
-            return bestTopic;
-        }
-
-        public async Task<List<(string TopicId, double Score)>> PredictTopTopics(Note note, int topN = 3)
-        {
-            float LowerThreshold = 0.678f;
             if (_topicEmbeddings.Count == 0)
                 return new();
             string textContent = ExtractPlainText(note.Content);
