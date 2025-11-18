@@ -51,7 +51,7 @@ namespace Nexus.Desktop.ViewModels
                 if (SetProperty(ref _selectedNote, value))
                 {
                     TreeSelection = value;
-                    NoteEditor.LoadNote(value);
+                    _events.RaiseNoteUpdated(value);
                     Dispatcher.UIThread.Post(async () =>
                     {
                         await UpdateSimilarNotes();
@@ -172,21 +172,30 @@ namespace Nexus.Desktop.ViewModels
         public ICommand ClearSearchCommand { get; }
 
         private readonly INoteSaveService _saveService;
+        private readonly NoteEvents _events;
 
-        public MainViewModel(INoteRepository noteRepo, ITopicsRepository topicsRepo, INoteTopicsRepository noteTopicsRepo, NoteEditorViewModel noteEditor, INoteSaveService saveService)
+        public MainViewModel(INoteRepository noteRepo, ITopicsRepository topicsRepo, INoteTopicsRepository noteTopicsRepo, 
+                            NoteEditorViewModel noteEditor, INoteSaveService saveService, NoteEvents events)
         {
             _noteRepo = noteRepo;
             _topicsRepo = topicsRepo;
             _noteTopicsRepo = noteTopicsRepo;
             _noteEditor = noteEditor;
-            _noteEditor.TopicsChanged += async () =>
-            {
-                var note = NoteEditor.CurrentNote;   // the one whose topics changed
-                await SaveNote(note);
-                var notes = await _noteRepo.GetAllAsync();
-                await LoadTopicsAsync(notes.ToList());
-            };
+            _events = events;
             _saveService = saveService;
+            _events.TopicsChanged += async note =>
+            {
+                await _saveService.SaveAsync(note, note.Content);
+                await ReloadNoteRelationsAsync(note);
+            };
+            //_noteEditor.TopicsChanged += async () =>
+            //{
+            //    var note = NoteEditor.CurrentNote;   // the one whose topics changed
+            //    await SaveNote(note);
+            //    var notes = await _noteRepo.GetAllAsync();
+            //    await LoadTopicsAsync(notes.ToList());
+            //};
+            
 
 
             DeleteNoteCommand = new RelayCommand(async param => await DeleteNoteAsync(param as Note));
@@ -204,6 +213,12 @@ namespace Nexus.Desktop.ViewModels
 
         }
 
+        private async Task ReloadNoteRelationsAsync(Note note)
+        {
+            await LoadTopicsAsync((await _noteRepo.GetAllAsync()).ToList());
+            await UpdateSimilarNotes();
+        }
+
         public async Task InitializeAsync()
         {
             var notes = await LoadNotesAsync();
@@ -215,7 +230,7 @@ namespace Nexus.Desktop.ViewModels
         {
             await _noteTopicsRepo.DeleteByTopicIdAsync(SelectedTopic!.Id);
             await _topicsRepo.DeleteAsync(SelectedTopic!.Id);
-            _noteEditor.Predictor.RemoveTopicAsync(SelectedTopic!.Id);
+            _events.RaiseTopicsChanged(SelectedNote!);
             var notes = await _noteRepo.GetAllAsync(); 
             await LoadTopicsAsync(notes.ToList());
         }
@@ -278,7 +293,7 @@ namespace Nexus.Desktop.ViewModels
                 notes.TryGetValue(prevSelectedNote.Id, out var restored))
             {
                 SelectedNote = restored;
-                NoteEditor.LoadNote(restored);
+                _events.RaiseNoteUpdated(restored);
             }
 
             ApplyTopicsFilter();
@@ -344,7 +359,7 @@ namespace Nexus.Desktop.ViewModels
             if (SelectedNote != null && noteToDelete.Id == SelectedNote.Id)
             {
                 SelectedNote = null;
-                NoteEditor.LoadNote(new Note());
+                _events.RaiseNoteUpdated(new Note());
             }
             var notes = await _noteRepo.GetAllAsync();
             await LoadTopicsAsync(notes.ToList()); ; // TODO: do we need this here? maybe if we're in notes mode, we don't need to load this and only load on switch to topics mode

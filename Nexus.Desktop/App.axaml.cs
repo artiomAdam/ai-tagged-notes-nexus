@@ -46,6 +46,7 @@ public partial class App : Application
 
         // Services
         sc.AddSingleton<TagPredictor>();
+        sc.AddSingleton<NoteEvents>();
 
         Services = sc.BuildServiceProvider();
 

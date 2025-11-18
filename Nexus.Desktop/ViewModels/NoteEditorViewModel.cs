@@ -17,6 +17,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Numerics.Tensors;
 using System.Reactive.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -70,7 +71,6 @@ namespace Nexus.Desktop.ViewModels
             set => this.RaiseAndSetIfChanged(ref _topicPickerSelectedIndex, value);
         }
 
-        public event Func<Task>? TopicsChanged;
 
 
         // Extras Tab:
@@ -122,15 +122,25 @@ namespace Nexus.Desktop.ViewModels
         public ICommand RemoveTopicCommand { get; }
         public ICommand OpenCustomTopicDialogCommand { get; }
 
+        private readonly NoteEvents _events;
 
-
-        public NoteEditorViewModel(INoteTopicsRepository noteTopicsRepo, ITopicsRepository topicsRepo, TagPredictor tagPredictor, INoteSaveService saveService)
+        public NoteEditorViewModel(INoteTopicsRepository noteTopicsRepo, ITopicsRepository topicsRepo, 
+                                    TagPredictor tagPredictor, INoteSaveService saveService, NoteEvents events)
         {
 
             _noteTopicsRepo = noteTopicsRepo;
             _topicsRepo = topicsRepo;
             _tagPredictor = tagPredictor;
             _saveService = saveService;
+            _events = events;
+            _events.NoteUpdated += note => LoadNote(note);
+            _events.TopicsChanged += note =>
+            {
+                if (note != null && _tagPredictor != null)
+                {
+                    _tagPredictor.RemoveTopicAsync(note.Id);
+                }
+            };
 
             this.WhenAnyValue(
                             vm => vm.CurrentNote!.Title,
@@ -190,11 +200,10 @@ namespace Nexus.Desktop.ViewModels
             _ = LoadLinkedTopicsAsync();
             _ = PredictTopicAsync();
 
-            if (TopicsChanged != null)
-                _ = TopicsChanged.Invoke();
+            _events.RaiseTopicsChanged(CurrentNote!);
 
 
-            
+
         }
         public void AttachEditor(RichTextBox editor)
         {
@@ -256,8 +265,7 @@ namespace Nexus.Desktop.ViewModels
             await _noteTopicsRepo.AddTopicToNoteAsync(CurrentNote.Id, topicId);
             _ = LoadLinkedTopicsAsync();
 
-            if (TopicsChanged != null)
-                _ = TopicsChanged.Invoke();
+            _events.RaiseTopicsChanged(CurrentNote!);
 
 
         }
@@ -274,8 +282,7 @@ namespace Nexus.Desktop.ViewModels
             await _noteTopicsRepo.AddTopicToNoteAsync(CurrentNote.Id, currentTopicId);
             await LoadLinkedTopicsAsync();
             await PredictTopicAsync();
-            if (TopicsChanged != null)
-                _ = TopicsChanged.Invoke();
+            _events.RaiseTopicsChanged(CurrentNote!);
 
         }
         private async Task LoadLinkedTopicsAsync()
