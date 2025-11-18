@@ -2,9 +2,12 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using Nexus.Core.Models;
 using Nexus.Desktop.ViewModels;
 using Nexus.Desktop.ViewModels.Enums;
 using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Nexus.Desktop.Views;
 
@@ -28,6 +31,9 @@ public partial class MainWindow : Window
                 };
         };
     }
+
+
+
 
     protected override async void OnOpened(EventArgs e)
     {

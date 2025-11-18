@@ -1,4 +1,7 @@
-﻿using Avalonia.Controls.Documents;
+﻿using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Controls.Documents;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
@@ -7,6 +10,7 @@ using Nexus.Core.Interfaces;
 using Nexus.Core.Models;
 using Nexus.Core.Services;
 using Nexus.Core.Utilities;
+using Nexus.Desktop.Views;
 using ReactiveUI;
 using System;
 using System.Collections.Generic;
@@ -116,6 +120,7 @@ namespace Nexus.Desktop.ViewModels
         public ICommand PredictTopicCommand { get; }
         public ICommand AddSuggestedTopicCommand { get; }
         public ICommand RemoveTopicCommand { get; }
+        public ICommand OpenCustomTopicDialogCommand { get; }
 
 
 
@@ -147,6 +152,7 @@ namespace Nexus.Desktop.ViewModels
             PredictTopicCommand = new RelayCommand(async _ => await PredictTopicAsync());
             AddSuggestedTopicCommand = new RelayCommand(async param => await AddSuggestedTopic(param  as string));
             RemoveTopicCommand = new RelayCommand(async param => await RemoveTopicAsync(param as string));
+            OpenCustomTopicDialogCommand = new RelayCommand(_ => OpenCustomTopicDialog());
 
             // those are like that because richtextbox needs to be updated only from the UI thread
             ToggleBoldCommand = new RelayCommand(_ =>
@@ -469,5 +475,51 @@ namespace Nexus.Desktop.ViewModels
                 string.Empty);
             return System.Net.WebUtility.HtmlDecode(noTags).Trim();
         }
+
+        private async void OpenCustomTopicDialog()
+        {
+            if (CurrentNote == null) return;
+            var allTopics = await _topicsRepo.GetAllAsync();
+
+            var available = allTopics
+                .Where(t => !LinkedTopics.Any(lt => lt.Id == t.Id))
+                .ToList();
+
+            var dialog = new TopicPickerDialog(available);
+
+            // Show dialog and get Topic? as return value
+            var owner = GetMainWindow();
+            if (owner == null) return;
+
+            var chosen = await dialog.ShowDialog<Topic?>(owner);
+
+            if (chosen == null)
+                return; // user cancelled
+
+            // If new topic (no ID yet)
+            var existingTopics = await _topicsRepo.GetAllAsync();
+            bool existsInDb = existingTopics.Any(t => t.Id == chosen.Id);
+            if (!existsInDb)
+            {
+                
+                await _topicsRepo.InsertAsync(chosen);
+                chosen.Id = await _topicsRepo.GetIdByNameAsync(chosen.Name);
+                await _tagPredictor.AddOrUpdateTopicAsync(chosen.Id, chosen.Name);
+            }
+
+            // Link to note
+            await _noteTopicsRepo.AddTopicToNoteAsync(CurrentNote.Id, chosen.Id);
+            LinkedTopics.Add(chosen);
+        }
+
+        private Window? GetMainWindow()
+        {
+            if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+                return desktop.MainWindow;
+
+            return null;
+        }
+
+
     }
 }

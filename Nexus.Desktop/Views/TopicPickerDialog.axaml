@@ -1,0 +1,123 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:Nexus.Desktop.ViewModels"
+        xmlns:models="clr-namespace:Nexus.Core.Models;assembly=Nexus.Core"
+        xmlns:utils="clr-namespace:Nexus.Desktop.Utilities"
+        x:Class="Nexus.Desktop.Views.TopicPickerDialog"
+        x:DataType="vm:TopicPickerDialogViewModel"
+        Width="420" Height="360"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        TransparencyLevelHint="AcrylicBlur"
+        Background="Transparent"
+        SystemDecorations="None"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="-1">
+
+	<Border Background="#F5E5E8"
+            CornerRadius="12"
+            Padding="16"
+            BorderBrush="#33000000"
+            BorderThickness="1"
+            BoxShadow="0 4 16 0 #55000000">
+
+		<!-- MAIN VERTICAL LAYOUT -->
+		<StackPanel Spacing="16">
+
+			<!-- Header -->
+			<TextBlock Text="Choose or Create Topic"
+                       FontSize="20"
+                       FontWeight="SemiBold"/>
+
+			<!-- 2-COLUMN SECTION -->
+			<Grid ColumnDefinitions="170, *"
+                  ColumnSpacing="16"
+                  MaxHeight="220">
+
+				<!-- LEFT: Existing topics -->
+				<Border Background="#301BA9ED"
+                        Padding="4"
+                        CornerRadius="6"
+                        BorderBrush="#CCC"
+                        BorderThickness="1"
+                        Grid.Column="0"
+                        Width="170">
+
+					<ScrollViewer VerticalScrollBarVisibility="Auto">
+						<ListBox ItemsSource="{CompiledBinding AvailableTopics}"
+								 SelectedItem="{CompiledBinding SelectedTopic}"
+								 SelectionMode="Single">
+
+							<ListBox.Styles>
+								<!-- Style for selected item -->
+								<Style Selector="ListBoxItem:selected">
+									<Setter Property="Background" Value="#7A4FFF"/>
+									<!-- purple -->
+									<Setter Property="Foreground" Value="White"/>
+									<Setter Property="BorderThickness" Value="0"/>
+								</Style>
+
+								<!-- Style for normal items -->
+								<Style Selector="ListBoxItem">
+									<Setter Property="Background" Value="#F5F5F8"/>
+									<Setter Property="Foreground" Value="Black"/>
+									<Setter Property="Margin" Value="2"/>
+									<Setter Property="Padding" Value="8"/>
+									<Setter Property="CornerRadius" Value="6"/>
+								</Style>
+
+								<!-- Hover effect -->
+								<Style Selector="ListBoxItem:pointerover">
+									<Setter Property="Background" Value="#E3DBFF"/>
+								</Style>
+							</ListBox.Styles>
+
+							<ListBox.ItemTemplate>
+								<DataTemplate x:DataType="models:Topic">
+									<TextBlock Text="{CompiledBinding Name}"
+											   FontSize="14"/>
+								</DataTemplate>
+							</ListBox.ItemTemplate>
+
+						</ListBox>
+					</ScrollViewer>
+				</Border>
+
+				<!-- RIGHT: New topic -->
+				<StackPanel Spacing="8" Grid.Column="1">
+					<TextBlock Text="Create new topic:"/>
+
+					<TextBox Text="{CompiledBinding NewTopicName}"
+                             Watermark="New topic name…" />
+
+					<Button Content="Add New Topic"
+                            Command="{CompiledBinding AddNewTopicCommand}"
+                            Background="#7A4FFF"
+                            Foreground="White"
+                            CornerRadius="6"/>
+				</StackPanel>
+			</Grid>
+
+			<!-- FOOTER BUTTONS -->
+			<StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Spacing="12">
+
+				<Button Content="Use Selected"
+                        Width="120"
+                        Command="{CompiledBinding UseSelectedTopicCommand}"
+                        Background="#28a745"
+                        Foreground="White"
+                        CornerRadius="6"/>
+
+				<Button Content="Cancel"
+                        Width="120"
+                        Command="{CompiledBinding CancelCommand}"
+                        Background="#dddddd"
+                        Foreground="#333"
+                        CornerRadius="6"/>
+			</StackPanel>
+
+		</StackPanel>
+	</Border>
+</Window>

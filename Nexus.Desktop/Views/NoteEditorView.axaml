@@ -55,14 +55,14 @@
 		<!-- Topic suggestions template -->
 		<DataTemplate x:Key="TopicSuggestionTemplate">
 			<Border CornerRadius="16"
-					Background="#FF2D2D"
+					Background="#ED773F"
 					Padding="6,3"
 					Margin="2">
 
 				<StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
 
 					<TextBlock Text="{Binding}"
-							   Foreground="White"
+							   Foreground="#6E5C54"
 							   VerticalAlignment="Center"
 							   FontWeight="SemiBold"/>
 
@@ -79,7 +79,7 @@
 		<!-- Linked topics template -->
 		<DataTemplate x:Key ="LinkedTopicsTemplate"  x:DataType="models:Topic">
 			<Border CornerRadius="16"
-									Background="#2DFF2D"
+									Background="#93C758"
 									Padding="6,3"
 									Margin="2,6,0,15"
 					MaxHeight="40">
@@ -117,33 +117,61 @@
 					 FontSize="16"
 					 Margin="0,9,8,9" IsEnabled="{Binding CurrentNote, Converter={x:Static sys:ObjectConverters.IsNotNull}}"/>
 
-			<!-- Topics   TODO: Implement -->
-			<ScrollViewer Grid.Column="1"
-						  MaxHeight="80"
-              HorizontalScrollBarVisibility="Auto"
-              VerticalScrollBarVisibility="Disabled"
-              Padding="4"
-              Background="#202030"
-              CornerRadius="10"
-						  HorizontalContentAlignment="Stretch">
-				<ItemsControl ItemTemplate ="{StaticResource LinkedTopicsTemplate}" ItemsSource="{Binding LinkedTopics}">
+			<Border Background="#30c450c4" Grid.Column="1" CornerRadius ="35">
+				<ScrollViewer 
+							  MaxHeight="60"
+				  HorizontalScrollBarVisibility="Auto"
+				  VerticalScrollBarVisibility="Disabled"
+				  Padding="4"
+				  CornerRadius="10"
+							  HorizontalContentAlignment="Stretch">
+					<ItemsControl ItemTemplate ="{StaticResource LinkedTopicsTemplate}" ItemsSource="{Binding LinkedTopics}">
+						<ItemsControl.ItemsPanel>
+							<ItemsPanelTemplate>
+								<StackPanel Orientation="Horizontal" Spacing="6"/>
+							</ItemsPanelTemplate>
+						</ItemsControl.ItemsPanel>
+
+					</ItemsControl>
+				</ScrollViewer>
+			</Border>
+		</Grid>
+
+		<Grid Grid.Row="1" Grid.ColumnSpan="2">
+			<StackPanel Orientation="Horizontal" Spacing="6">
+
+				<!-- predictions -->
+				<ItemsControl ItemTemplate="{StaticResource TopicSuggestionTemplate}"
+							  ItemsSource="{Binding PredictedTopics}">
 					<ItemsControl.ItemsPanel>
 						<ItemsPanelTemplate>
 							<StackPanel Orientation="Horizontal" Spacing="6"/>
 						</ItemsPanelTemplate>
 					</ItemsControl.ItemsPanel>
-
 				</ItemsControl>
-			</ScrollViewer>
+
+				<!-- Custom Topic button -->
+				<Border CornerRadius="16"
+						Background="#4FA3D1"
+						Padding="6,3"
+						Margin="2">
+					<StackPanel Orientation="Horizontal" Spacing="8">
+						<TextBlock Text="Custom Topic"
+								   Foreground="White"
+								   VerticalAlignment="Center"
+								   FontWeight="SemiBold"/>
+
+						<Button Content="＋"
+								Classes="topicPlus"
+								Width="22"
+								Height="22"
+								Command="{Binding OpenCustomTopicDialogCommand}" />
+					</StackPanel>
+				</Border>
+
+			</StackPanel>
 		</Grid>
 
-		<ItemsControl Grid.Row="1" Grid.ColumnSpan="2" ItemTemplate="{StaticResource TopicSuggestionTemplate}" ItemsSource="{Binding PredictedTopics}">
-			<ItemsControl.ItemsPanel>
-				<ItemsPanelTemplate>
-					<StackPanel Orientation="Horizontal" Spacing="6"/>
-				</ItemsPanelTemplate>
-			</ItemsControl.ItemsPanel>
-		</ItemsControl>
 
 		<!-- Editor -->
 		<av:RichTextBox x:Name="Editor"

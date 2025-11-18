@@ -1,0 +1,93 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Nexus.Desktop.Views.YesNoDialog"
+        Width="380" Height="160"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        TransparencyLevelHint="AcrylicBlur"
+        Background="Transparent"
+		ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="-1"
+        SystemDecorations="None">
+
+	<!-- OUTER BORDER (card-style) -->
+	<Border Background="#F5F5F8"
+            CornerRadius="12"
+            Padding="16"
+            BorderBrush="#33000000"
+            BorderThickness="1"
+            BoxShadow="0 4 16 0 #55000000">
+
+		<Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="*">
+
+			<!-- HEADER -->
+			<StackPanel Spacing="8" Orientation="Horizontal" Margin="0,0,0,10">
+
+				<!-- Icon -->
+				<TextBlock Text="⚠"
+                           FontSize="28"
+                           VerticalAlignment="Center"
+                           Foreground="#D9534F"/>
+
+				<!-- Title -->
+				<TextBlock x:Name="DialogTitle"
+                           Text="Confirm"
+                           FontSize="20"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center"/>
+			</StackPanel>
+
+			<!-- MESSAGE -->
+			<TextBlock x:Name="MessageText"
+                       Grid.Row="1"
+                       TextWrapping="Wrap"
+                       FontSize="14"
+                       Foreground="#333"
+                       Margin="4,0,4,0"/>
+
+			<!-- BUTTONS -->
+			<StackPanel Grid.Row="2"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Spacing="12"
+                        Margin="0,16,0,0">
+
+				<!-- YES BUTTON (accent) -->
+				<Button Width="100"
+                        Content="Yes"
+                        Click="OnYesClicked"
+                        Background="#28a745"
+                        Foreground="White"
+                        CornerRadius="6"
+                        FontWeight="SemiBold"
+                        Padding="6,4">
+
+					<Button.Styles>
+						<Style Selector="Button:pointerover">
+							<Setter Property="Background" Value="#2ecc71"/>
+						</Style>
+					</Button.Styles>
+				</Button>
+
+				<!-- NO BUTTON (neutral) -->
+				<Button Width="100"
+                        Content="No"
+                        Click="OnNoClicked"
+                        Background="#dddddd"
+                        Foreground="#333"
+                        CornerRadius="6"
+                        FontWeight="SemiBold"
+                        Padding="6,4">
+
+					<Button.Styles>
+						<Style Selector="Button:pointerover">
+							<Setter Property="Background" Value="#cccccc"/>
+						</Style>
+					</Button.Styles>
+				</Button>
+
+			</StackPanel>
+
+		</Grid>
+	</Border>
+</Window>

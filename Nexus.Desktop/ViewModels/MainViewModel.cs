@@ -1,8 +1,11 @@
-﻿using Nexus.Core.Interfaces;
+﻿using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Threading;
+using Nexus.Core.Interfaces;
 using Nexus.Core.Models;
 using Nexus.Core.Services;
 using Nexus.Core.Utilities;
 using Nexus.Desktop.ViewModels.Enums;
+using Nexus.Desktop.Views;
 using ReactiveUI;
 using System;
 using System.Collections.Generic;
@@ -33,14 +36,26 @@ namespace Nexus.Desktop.ViewModels
             get => _selectedNote;
             set
             {
-                if (_selectedNote != null && _selectedNote != value)
+                if (value == null && _selectedNote != null)
+                    return;
+                if (_selectedNote != value)
                 {
-                    SaveNote();
+                    var previous = _selectedNote;
+
+                    // Run AFTER the selection change is fully applied
+                    Dispatcher.UIThread.Post(async () =>
+                    {
+                        await SaveNote(previous);
+                    });
                 }
                 if (SetProperty(ref _selectedNote, value))
                 {
+                    TreeSelection = value;
                     NoteEditor.LoadNote(value);
-                    UpdateSimilarNotes();
+                    Dispatcher.UIThread.Post(async () =>
+                    {
+                        await UpdateSimilarNotes();
+                    });
                     ((RelayCommand)AddChildNoteCommand).RaiseCanExecuteChanged();
                 }
             }
@@ -156,7 +171,6 @@ namespace Nexus.Desktop.ViewModels
         public ICommand SearchCommand { get; }
         public ICommand ClearSearchCommand { get; }
 
-
         private readonly INoteSaveService _saveService;
 
         public MainViewModel(INoteRepository noteRepo, ITopicsRepository topicsRepo, INoteTopicsRepository noteTopicsRepo, NoteEditorViewModel noteEditor, INoteSaveService saveService)
@@ -167,6 +181,8 @@ namespace Nexus.Desktop.ViewModels
             _noteEditor = noteEditor;
             _noteEditor.TopicsChanged += async () =>
             {
+                var note = NoteEditor.CurrentNote;   // the one whose topics changed
+                await SaveNote(note);
                 var notes = await _noteRepo.GetAllAsync();
                 await LoadTopicsAsync(notes.ToList());
             };
@@ -221,6 +237,7 @@ namespace Nexus.Desktop.ViewModels
 
         private async Task LoadTopicsAsync(List<Note> allNotes)
         {
+            
             var prevSelectedNote = SelectedNote;
 
             var topicsTask = _topicsRepo.GetAllAsync();
@@ -280,12 +297,14 @@ namespace Nexus.Desktop.ViewModels
         }
 
 
-        private async void SaveNote()
+        private async Task SaveNote(Note? noteToSave = null)
         {
-            if (SelectedNote == null) return;
+            var note = noteToSave ?? SelectedNote;
+            if (note == null) return;
 
-            var content = NoteEditor.GetEditedNote().Content;
-            await _saveService.SaveAsync(SelectedNote, content);
+            if (NoteEditor.CurrentNote == note)
+                note.Content = NoteEditor.GetEditedNote().Content;
+            await _saveService.SaveAsync(note, note.Content);
 
             NoteEditor.RaisePropertyChanged(nameof(NoteEditor.FooterText));
         }
@@ -293,6 +312,13 @@ namespace Nexus.Desktop.ViewModels
         private async Task DeleteNoteAsync(Note? noteToDelete)
         {
             if (noteToDelete is null) return;
+            bool confirmed = await ConfirmAsync(
+                        "Delete Note",
+                        $"Are you sure you want to delete \n \"{noteToDelete.Title}\"?"
+                    );
+
+            if (!confirmed)
+                return;
 
             if (_isHierarchyMode && noteToDelete.Children.Any())
             {
@@ -322,6 +348,19 @@ namespace Nexus.Desktop.ViewModels
             }
             var notes = await _noteRepo.GetAllAsync();
             await LoadTopicsAsync(notes.ToList()); ; // TODO: do we need this here? maybe if we're in notes mode, we don't need to load this and only load on switch to topics mode
+        }
+
+        private async Task<bool> ConfirmAsync(string title, string message)
+        {
+            var dialog = new YesNoDialog();
+            dialog.Title = title;
+            dialog.SetMessage(message);
+
+            var window = (App.Current!.ApplicationLifetime as
+                          Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)!
+                          .MainWindow;
+
+            return await dialog.ShowDialogAsync(window);
         }
 
         private async Task AddParentNoteAsync()
@@ -470,15 +509,82 @@ namespace Nexus.Desktop.ViewModels
             OnPropertyChanged(nameof(TopicsHierarchy));
         }
 
-        private void UpdateSimilarNotes()
+        private async Task UpdateSimilarNotes()
         {
             SimilarNotes.Clear();
 
             if (SelectedNote == null)
                 return;
 
-            // TODO: Real similarity using embeddings
-            // For now, leave empty so UI runs with no errors.
+            var noteTopicIds = await _noteTopicsRepo.GetTopicsForNoteAsync(SelectedNote.Id);
+            if (!noteTopicIds.Any())
+                return;
+
+            var allLinks = await _noteTopicsRepo.GetAllLinksAsync();
+            var relatedNotes = new Dictionary<string, int>(); // <noteId, shared topics count>
+
+            foreach (var link in allLinks)
+            {
+                if (noteTopicIds.Contains(link.TopicId) && link.NoteId != SelectedNote.Id)
+                {
+                    if (!relatedNotes.ContainsKey(link.NoteId))
+                        relatedNotes[link.NoteId] = 0;
+                    relatedNotes[link.NoteId]++;
+                }
+            }
+
+            var allNotes = await _noteRepo.GetAllAsync();
+            var allNotesMap = allNotes.ToDictionary(n => n.Id);
+
+            var explicitMatches = relatedNotes
+                .OrderByDescending(kvp => kvp.Value)
+                .Select(kvp => allNotesMap[kvp.Key])
+                .Take(10)
+                .ToList();
+
+            foreach (var n in explicitMatches)
+            {
+                if (!SimilarNotes.Any(x => x.Id == n.Id))
+                    SimilarNotes.Add(n);
+            }
+
+            if (SimilarNotes.Count >= 10)
+                return;
+
+            var selectedTopicNames = new List<string>();
+            foreach (var tid in noteTopicIds)
+            {
+                var name = await _topicsRepo.GetNameByIdAsync(tid);
+                if (!string.IsNullOrWhiteSpace(name))
+                    selectedTopicNames.Add(name);
+            }
+
+            if (selectedTopicNames.Count == 0)
+                return;
+
+            var combined = string.Join(" ", selectedTopicNames);
+
+            var semantic = await _noteEditor.Predictor.PredictTopTopics(
+                new Note { Content = combined },
+                topN: 5,
+                LowerThreshold: 0.75f);
+
+            foreach (var (topicId, score) in semantic)
+            {
+                foreach (var n in allNotes.Where(x => x.Id != SelectedNote.Id))
+                {
+                    var topicIdsOfN = await _noteTopicsRepo.GetTopicsForNoteAsync(n.Id);
+                    if (topicIdsOfN.Contains(topicId))
+                    {
+                        if (!SimilarNotes.Any(x => x.Id == n.Id))
+                        {
+                            SimilarNotes.Add(n);
+                            if (SimilarNotes.Count == 10)
+                                return;
+                        }
+                    }
+                }
+            }
         }
 
         private async Task RestoreFullHierarchyAsync()
