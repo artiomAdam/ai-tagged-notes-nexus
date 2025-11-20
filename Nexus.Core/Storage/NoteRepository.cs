@@ -95,6 +95,7 @@ namespace Nexus.Core.Storage
             cmd.Parameters.AddWithValue("id", note.Id);
             cmd.Parameters.AddWithValue("title", note.Title);
             cmd.Parameters.AddWithValue("content", note.Content);
+            // TODO: maybe change this part? the update already happens with the new note.
             DateTime now = DateTime.UtcNow;
             note.UpdatedAt = now;
             cmd.Parameters.AddWithValue("updated", now);

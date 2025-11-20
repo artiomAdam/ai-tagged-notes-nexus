@@ -179,7 +179,7 @@
                 Margin="8" IsEnabled="{Binding CurrentNote, Converter={x:Static sys:ObjectConverters.IsNotNull}}" />
 
 		
-		
+		<!-- TODO: do i still want tabs here? -->
 		<TabControl Grid.Row="2" Grid.Column="1" Margin="8"
 					SelectedIndex="{Binding ExtrasTabIndex}">
 			<TabControl.Styles>
@@ -205,36 +205,66 @@
 					<Setter Property="Foreground" Value="White"/>
 				</Style>
 			</TabControl.Styles>
-			
-			<!-- Tab 1 -->
-			<TabItem Header="Edit Note Topics">
-				<ScrollViewer VerticalScrollBarVisibility="Auto">
-					<StackPanel Spacing="6">
-						<ComboBox ItemsSource="{Binding TopicPickerItems}"
-								  SelectedItem="{Binding SelectedTopicPickerItem, Mode=TwoWay}"
-								  SelectedIndex="{Binding TopicPickerSelectedIndex, Mode=TwoWay}"
-								  Margin="0,0,0,4">
 
-							<ComboBox.ItemTemplate>
-								<DataTemplate>
-									<Border Background="{Binding IsNew, Converter={StaticResource BoolToBrushConverter}}"
-											Padding="4">
-										<TextBlock Text="{Binding DisplayName}"/>
-									</Border>
-								</DataTemplate>
-							</ComboBox.ItemTemplate>
-
-						</ComboBox>
-					</StackPanel>
-				</ScrollViewer>
-			</TabItem>
-
-			<!-- Tab 2 -->
 			<TabItem Header="Edit Text">
 				<StackPanel Spacing="6">
+
+					<!-- Formatting buttons -->
 					<Button Content="Bold" Command="{Binding ToggleBoldCommand}"/>
 					<Button Content="Italic" Command="{Binding ToggleItalicCommand}"/>
 					<Button Content="Underline" Command="{Binding ToggleUnderlineCommand}"/>
+
+					<!-- Font color -->
+					<DockPanel Margin="4,10,0,0">
+						<TextBlock Text="Font color:"
+								   VerticalAlignment="Center"
+								   Margin="0,0,6,0"/>
+						<ColorPicker Name="FontColorPicker" Width="80"
+									 Height="26"
+									 Background="White"
+									 ColorChanged="FontColorPicker_ColorChanged"/>
+					</DockPanel>
+
+					<!-- Background highlight color -->
+					<DockPanel Margin="4,4,0,0">
+						<TextBlock Text="Highlight:"
+								   VerticalAlignment="Center"
+								   Margin="0,0,6,0"/>
+						<ColorPicker Name="HighlightColorPicker" Width="80"
+									 Height="26"
+									 Background="White"
+									 ColorChanged="FontBgPicker_ColorChanged"/>
+					</DockPanel>
+
+					<!-- Font size -->
+					<DockPanel Margin="4,4,0,0">
+						<TextBlock Text="Size:"
+								   VerticalAlignment="Center"
+								   Margin="0,0,6,0"/>
+						<ComboBox Name="FontSizeCombo" Width="80"
+								  SelectionChanged="FontSizeCombo_Changed">
+							<ComboBoxItem>10</ComboBoxItem>
+							<ComboBoxItem>12</ComboBoxItem>
+							<ComboBoxItem>14</ComboBoxItem>
+							<ComboBoxItem>16</ComboBoxItem>
+							<ComboBoxItem>18</ComboBoxItem>
+							<ComboBoxItem>20</ComboBoxItem>
+							<ComboBoxItem>24</ComboBoxItem>
+							<ComboBoxItem>28</ComboBoxItem>
+							<ComboBoxItem>32</ComboBoxItem>
+						</ComboBox>
+					</DockPanel>
+
+					<!-- Font family -->
+					<DockPanel Margin="4,4,0,0">
+						<TextBlock Text="Font:"
+								   VerticalAlignment="Center"
+								   Margin="0,0,6,0"/>
+						<ComboBox Name="FontFamilyCombo" Width="150"
+								  SelectionChanged="FontFamilyCombo_Changed">
+						</ComboBox>
+					</DockPanel>
+
 				</StackPanel>
 			</TabItem>
 		</TabControl>

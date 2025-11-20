@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using Microsoft.Extensions.DependencyInjection;
 using Nexus.Core.Models;
 using Nexus.Desktop.ViewModels;
 using Nexus.Desktop.ViewModels.Enums;
@@ -16,9 +17,17 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+
+        var mainVM = App.Services!.GetRequiredService<MainViewModel>();
+        var editorVM = App.Services!.GetRequiredService<NoteEditorViewModel>();
+
+        DataContext = mainVM;
+        NoteEditorHost.DataContext = editorVM;
+
         this.AttachedToVisualTree += (_, _) =>
         {
             if (DataContext is MainViewModel vm)
+            {
                 vm.PropertyChanged += (_, e) =>
                 {
                     if (e.PropertyName == nameof(MainViewModel.SelectedNote) && vm.SelectedNote != null)
@@ -29,6 +38,7 @@ public partial class MainWindow : Window
                         });
                     }
                 };
+            }
         };
     }
 

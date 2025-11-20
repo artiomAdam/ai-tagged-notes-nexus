@@ -118,7 +118,7 @@
 					<TabItem Header="Actions">
 						<StackPanel Orientation="Horizontal" Spacing="8" Margin="8">
 							<Button Content="Add Note" Command="{Binding AddParentNoteCommand}" />
-							<Button Content="Save" Command="{CompiledBinding SaveNoteCommand}"/>
+							<Button Content="Save" Command="{Binding SaveNoteCommand}"/>
 						</StackPanel>
 					</TabItem>
 
@@ -211,7 +211,7 @@
 									<ComboBoxItem Tag="{x:Static vmEnums:NotesFilterType.ZtoA}"    Content="Z → A"/>
 									<ComboBoxItem Tag="{x:Static vmEnums:NotesFilterType.Newest}"  Content="Newest"/>
 									<ComboBoxItem Tag="{x:Static vmEnums:NotesFilterType.Oldest}"  Content="Oldest"/>
-									<ComboBoxItem Tag="{x:Static vmEnums:NotesFilterType.Topic}"   Content="By Topic"/>
+									<!--<ComboBoxItem Tag="{x:Static vmEnums:NotesFilterType.Topic}"   Content="By Topic"/> -->
 
 								</ComboBox>
 
@@ -223,7 +223,7 @@
 
 									<ComboBoxItem Tag="{x:Static vmEnums:TopicsFilterType.AtoZ}"         Content="A → Z"/>
 									<ComboBoxItem Tag="{x:Static vmEnums:TopicsFilterType.ZtoA}"         Content="Z → A"/>
-									<ComboBoxItem Tag="{x:Static vmEnums:TopicsFilterType.Similarity}"   Content="Similarity"/>
+									<!--<ComboBoxItem Tag="{x:Static vmEnums:TopicsFilterType.Similarity}"   Content="Similarity"/>-->
 
 								</ComboBox>
 
@@ -380,8 +380,8 @@
 
 
 		<!-- RIGHT SIDE: the whole editor area -->
-		<views:NoteEditorView Grid.Column="1"
-							  DataContext="{Binding NoteEditor}" />
+		<views:NoteEditorView x:Name="NoteEditorHost"
+							  Grid.Column="1" />
 	</Grid>
 </Window>
 
