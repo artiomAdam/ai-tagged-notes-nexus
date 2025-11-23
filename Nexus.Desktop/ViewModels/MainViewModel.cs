@@ -1,5 +1,6 @@
 ﻿using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
+using Microsoft.Extensions.DependencyInjection;
 using Nexus.Core.Interfaces;
 using Nexus.Core.Models;
 using Nexus.Core.Services;
@@ -20,15 +21,6 @@ namespace Nexus.Desktop.ViewModels
     {
         public ObservableCollection<Note> SimilarNotes { get; private set; } = new();
         private readonly INoteRepository _noteRepo;
-
-
-        private readonly NoteEditorViewModel _noteEditor;
-        public NoteEditorViewModel NoteEditor
-        {
-            get => _noteEditor;
-        }
-
-        
        
         private Note? _selectedNote;
         public Note? SelectedNote
@@ -36,26 +28,13 @@ namespace Nexus.Desktop.ViewModels
             get => _selectedNote;
             set
             {
-                if (value == null && _selectedNote != null)
+                if (value == null)
                     return;
-                if (_selectedNote != value)
-                {
-                    var previous = _selectedNote;
-
-                    // Run AFTER the selection change is fully applied
-                    Dispatcher.UIThread.Post(async () =>
-                    {
-                        await SaveNote(previous);
-                    });
-                }
                 if (SetProperty(ref _selectedNote, value))
                 {
                     TreeSelection = value;
                     _events.RaiseNoteUpdated(value);
-                    Dispatcher.UIThread.Post(async () =>
-                    {
-                        await UpdateSimilarNotes();
-                    });
+                    Dispatcher.UIThread.Post(async () => await UpdateSimilarNotes());
                     ((RelayCommand)AddChildNoteCommand).RaiseCanExecuteChanged();
                 }
             }
@@ -175,31 +154,39 @@ namespace Nexus.Desktop.ViewModels
         private readonly NoteEvents _events;
 
         public MainViewModel(INoteRepository noteRepo, ITopicsRepository topicsRepo, INoteTopicsRepository noteTopicsRepo, 
-                            NoteEditorViewModel noteEditor, INoteSaveService saveService, NoteEvents events)
+                             INoteSaveService saveService, NoteEvents events)
         {
             _noteRepo = noteRepo;
             _topicsRepo = topicsRepo;
             _noteTopicsRepo = noteTopicsRepo;
-            _noteEditor = noteEditor;
             _events = events;
             _saveService = saveService;
             _events.TopicsChanged += async note =>
             {
-                await _saveService.SaveAsync(note, note.Content);
-                await ReloadNoteRelationsAsync(note);
+                //await _saveService.SaveAsync(note, note.Content);
+                //await ReloadNoteRelationsAsync(note);
+                var links = await _noteTopicsRepo.GetAllLinksAsync();
+
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    foreach (var topic in TopicsHierarchy)
+                    {
+                        topic.Notes.Clear();
+
+                        foreach (var link in links.Where(l => l.TopicId == topic.Id))
+                        {
+                            var matchingNote = NotesHierarchy.FirstOrDefault(n => n.Id == link.NoteId);
+                            if (matchingNote != null)
+                                topic.Notes.Add(matchingNote);
+                        }
+                    }
+                });
             };
-            //_noteEditor.TopicsChanged += async () =>
-            //{
-            //    var note = NoteEditor.CurrentNote;   // the one whose topics changed
-            //    await SaveNote(note);
-            //    var notes = await _noteRepo.GetAllAsync();
-            //    await LoadTopicsAsync(notes.ToList());
-            //};
             
 
 
-            DeleteNoteCommand = new RelayCommand(async param => await DeleteNoteAsync(param as Note));
-            SaveNoteCommand = new RelayCommand(_ => SaveNote());
+            DeleteNoteCommand = new RelayCommand(async note => await DeleteNoteAsync(note as Note));
+            SaveNoteCommand = new RelayCommand(async _ => await SaveNote());
             AddParentNoteCommand = new RelayCommand(async _ => await AddParentNoteAsync());
             AddChildNoteCommand = new RelayCommand(async _ => await AddChildNoteAsync(), _ => CanAddChildNote());
             RemoveTopicCommand = new RelayCommand(async _ => await RemoveTopicAsync());
@@ -213,11 +200,6 @@ namespace Nexus.Desktop.ViewModels
 
         }
 
-        private async Task ReloadNoteRelationsAsync(Note note)
-        {
-            await LoadTopicsAsync((await _noteRepo.GetAllAsync()).ToList());
-            await UpdateSimilarNotes();
-        }
 
         public async Task InitializeAsync()
         {
@@ -315,13 +297,12 @@ namespace Nexus.Desktop.ViewModels
         private async Task SaveNote(Note? noteToSave = null)
         {
             var note = noteToSave ?? SelectedNote;
-            if (note == null) return;
+            if (note == null)
+                return;
+            string content = _events.RequestNoteContent?.Invoke(note) ?? note.Content ?? "";
 
-            if (NoteEditor.CurrentNote == note)
-                note.Content = NoteEditor.GetEditedNote().Content;
-            await _saveService.SaveAsync(note, note.Content);
+            await _saveService.SaveAsync(note, content);
 
-            NoteEditor.RaisePropertyChanged(nameof(NoteEditor.FooterText));
         }
 
         private async Task DeleteNoteAsync(Note? noteToDelete)
@@ -384,7 +365,8 @@ namespace Nexus.Desktop.ViewModels
             {
                 Title = "Untitled",
                 Content = "",
-                ParentId = null
+                ParentId = null,
+                HasUnsavedChanges = true
             };
 
             await _noteRepo.InsertAsync(newNote);
@@ -400,7 +382,7 @@ namespace Nexus.Desktop.ViewModels
             }
 
             SelectedNote = newNote;
-            NoteEditor.LoadNote(newNote);
+            _events.RaiseNoteUpdated(newNote);
         }
 
         private bool CanAddChildNote()
@@ -424,7 +406,7 @@ namespace Nexus.Desktop.ViewModels
             SelectedNote.Children.Add(child);
 
             SelectedNote = child;
-            NoteEditor.LoadNote(child);
+            _events.RaiseNoteUpdated(child);
         }
 
         private async Task SearchAsync()
@@ -453,7 +435,7 @@ namespace Nexus.Desktop.ViewModels
                     {
                         //matches = new[] { SelectedNote };
                         // Here, we need to select in the editor, so probably should hook up to some editor event
-                        NoteEditor.HighlightSearchHit(query);
+                        _events.RaiseSearchRequested(query);
                         return;
                     }
                     return;
@@ -579,7 +561,8 @@ namespace Nexus.Desktop.ViewModels
 
             var combined = string.Join(" ", selectedTopicNames);
 
-            var semantic = await _noteEditor.Predictor.PredictTopTopics(
+            var predictor = App.Services!.GetRequiredService<TagPredictor>();
+            var semantic = await predictor!.PredictTopTopics(
                 new Note { Content = combined },
                 topN: 5,
                 LowerThreshold: 0.75f);

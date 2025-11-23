@@ -4,6 +4,7 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using AvRichTextBox;
 using Nexus.Desktop.ViewModels;
+using ReactiveUI;
 using System;
 using System.Linq;
 
@@ -43,12 +44,14 @@ public partial class NoteEditorView : UserControl
     {
         var brush = new SolidColorBrush(e.NewColor);
         _editor!.FlowDocument.Selection.ApplyFormatting(ForegroundProperty, brush);
+        (DataContext as NoteEditorViewModel)?.MarkAsEdited();
     }
 
     private void FontBgPicker_ColorChanged(object? sender, ColorChangedEventArgs e)
     {
         var brush = new SolidColorBrush(e.NewColor);
         _editor!.FlowDocument.Selection.ApplyFormatting(Inline.BackgroundProperty, brush);
+        (DataContext as NoteEditorViewModel)?.MarkAsEdited();
     }
 
     private void FontSizeCombo_Changed(object? sender, SelectionChangedEventArgs e)
@@ -58,6 +61,7 @@ public partial class NoteEditorView : UserControl
         {
             _editor!.FlowDocument.Selection.ApplyFormatting(Inline.FontSizeProperty, size);
         }
+        (DataContext as NoteEditorViewModel)?.MarkAsEdited();
     }
 
     private void FontFamilyCombo_Changed(object? sender, SelectionChangedEventArgs e)
@@ -70,36 +74,32 @@ public partial class NoteEditorView : UserControl
             var font = FontFamily.Parse(fontName);
             _editor!.FlowDocument.Selection.ApplyFormatting(Inline.FontFamilyProperty, font);
         }
+        (DataContext as NoteEditorViewModel)?.MarkAsEdited();
     }
 
     private void BoldButton_Click(object? sender, RoutedEventArgs e)
     {
-        _editor!.FlowDocument.Selection.ApplyFormatting(
-            Inline.FontWeightProperty,
-            FontWeight.Bold);
+        _editor!.FlowDocument.Selection.ApplyFormatting(Inline.FontWeightProperty, FontWeight.Bold);
+        (DataContext as NoteEditorViewModel)?.MarkAsEdited();
     }
 
     private void ItalicButton_Click(object? sender, RoutedEventArgs e)
     {
-        _editor!.FlowDocument.Selection.ApplyFormatting(
-            Inline.FontStyleProperty,
-            FontStyle.Italic);
+        _editor!.FlowDocument.Selection.ApplyFormatting(Inline.FontStyleProperty, FontStyle.Italic);
+        (DataContext as NoteEditorViewModel)?.MarkAsEdited();
     }
 
 
     private void UnderlineButton_Click(object? sender, RoutedEventArgs e)
     {
-        var underline = new TextDecoration
-        {
-            Location = TextDecorationLocation.Underline
-        };
-
-        var collection = new TextDecorationCollection { underline };
-
-        _editor!.FlowDocument.Selection.ApplyFormatting(
-            Inline.TextDecorationsProperty,
-            collection);
+        _editor!.FlowDocument.Selection.ApplyFormatting(Inline.TextDecorationsProperty, TextDecorations.Underline);
+        (DataContext as NoteEditorViewModel)?.MarkAsEdited();
     }
+
+
+
+
+    // the following functions are to make sure that the UI stuff like - font, color, etc... reflect the correct thing on the textbox
     private void Editor_SelectionChanged(TextRange selection)
     {
         UpdateFontFamilyUI();
@@ -112,9 +112,9 @@ public partial class NoteEditorView : UserControl
         var value = _editor.FlowDocument.Selection.GetFormatting(Inline.FontFamilyProperty);
 
         if (value is FontFamily ff)
-            FontFamilyCombo.SelectedItem = ff.Name;   // assuming ComboBoxItem strings
+            FontFamilyCombo.SelectedItem = ff.Name;
         else
-            FontFamilyCombo.SelectedIndex = -1;       // mixed or none
+            FontFamilyCombo.SelectedIndex = -1;
     }
     private void UpdateFontSizeUI()
     {
@@ -165,4 +165,5 @@ public partial class NoteEditorView : UserControl
         cp.Tag = "mixed";
         cp.Color = Colors.Transparent;
     }
+
 }

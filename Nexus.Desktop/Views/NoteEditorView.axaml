@@ -210,9 +210,9 @@
 				<StackPanel Spacing="6">
 
 					<!-- Formatting buttons -->
-					<Button Content="Bold" Command="{Binding ToggleBoldCommand}"/>
-					<Button Content="Italic" Command="{Binding ToggleItalicCommand}"/>
-					<Button Content="Underline" Command="{Binding ToggleUnderlineCommand}"/>
+					<Button Content="Bold" Click="BoldButton_Click"/>
+					<Button Content="Italic" Click="ItalicButton_Click"/>
+					<Button Content="Underline" Click="UnderlineButton_Click"/>
 
 					<!-- Font color -->
 					<DockPanel Margin="4,10,0,0">

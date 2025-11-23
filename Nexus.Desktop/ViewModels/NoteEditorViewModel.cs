@@ -2,6 +2,7 @@
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Controls.Documents;
+using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
@@ -20,6 +21,7 @@ using System.Linq;
 using System.Numerics.Tensors;
 using System.Reactive.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 
@@ -37,40 +39,10 @@ namespace Nexus.Desktop.ViewModels
 
 
 
-        // topic picker (temporary?)
-        private Topic? _selectedTopic;
-        private TopicPickerItem? _selectedTopicPickerItem;
-        private int _topicPickerSelectedIndex;
-        public ObservableCollection<TopicPickerItem> TopicPickerItems { get; } = new();
-        public TopicPickerItem? SelectedTopicPickerItem
-        {
-            get => _selectedTopicPickerItem;
-            set
-            {
-                this.RaiseAndSetIfChanged(ref _selectedTopicPickerItem, value);
-                OnTopicPickerChanged();
-            }
-        }
+        
         public ObservableCollection<Topic> LinkedTopics { get; } = new();
         
-        public Topic? SelectedTopic
-        {
-            get => _selectedTopic;
-            set
-            {
-                this.RaiseAndSetIfChanged(ref _selectedTopic, value);
-                if (value != null)
-                {
-                    // TODO: Maybe future funcitonality - select a topic and do something with it?
-                }
-            }
-        }
-        public int TopicPickerSelectedIndex
-        {
-            get => _topicPickerSelectedIndex;
-            set => this.RaiseAndSetIfChanged(ref _topicPickerSelectedIndex, value);
-        }
-
+        
 
 
         // Extras Tab:
@@ -99,7 +71,6 @@ namespace Nexus.Desktop.ViewModels
             {
                 this.RaiseAndSetIfChanged(ref _currentNote, value);
                 _ = LoadLinkedTopicsAsync();
-                _ = LoadTopicPickerAsync();
             }
         }
 
@@ -110,13 +81,13 @@ namespace Nexus.Desktop.ViewModels
         // Services:
         private readonly INoteSaveService _saveService;
 
+        // AutoSave:
+        private CancellationTokenSource? _autosaveCts;
+        private static readonly TimeSpan AutosaveDelay = TimeSpan.FromSeconds(2);
+
 
 
         // Commands:
-        public ICommand ToggleBoldCommand { get; }
-        public ICommand ToggleItalicCommand { get; }
-        public ICommand ToggleUnderlineCommand { get; }
-        public ICommand AddTopicCommand { get; }
         public ICommand PredictTopicCommand { get; }
         public ICommand AddSuggestedTopicCommand { get; }
         public ICommand RemoveTopicCommand { get; }
@@ -132,6 +103,8 @@ namespace Nexus.Desktop.ViewModels
             _topicsRepo = topicsRepo;
             _tagPredictor = tagPredictor;
             _saveService = saveService;
+            
+            // Events:
             _events = events;
             _events.NoteUpdated += note => LoadNote(note);
             _events.TopicsChanged += note =>
@@ -140,6 +113,13 @@ namespace Nexus.Desktop.ViewModels
                 {
                     _tagPredictor.RemoveTopicAsync(note.Id);
                 }
+            };
+            _events.SearchRequested += query => HighlightSearchHit(query);
+            _events.RequestNoteContent = note =>
+            {
+                if (CurrentNote == note && _editor != null)
+                    return _editor.GetFullXamlString();
+                return note.Content ?? "";
             };
 
             this.WhenAnyValue(
@@ -158,36 +138,12 @@ namespace Nexus.Desktop.ViewModels
             _tagPredictor = new TagPredictor(_topicsRepo);
             _ = _tagPredictor.InitializeAsync();
             
-            AddTopicCommand = new RelayCommand(async _ => await AddTopicAsync());
+            
             PredictTopicCommand = new RelayCommand(async _ => await PredictTopicAsync());
             AddSuggestedTopicCommand = new RelayCommand(async param => await AddSuggestedTopic(param  as string));
             RemoveTopicCommand = new RelayCommand(async param => await RemoveTopicAsync(param as string));
             OpenCustomTopicDialogCommand = new RelayCommand(_ => OpenCustomTopicDialog());
 
-            // those are like that because richtextbox needs to be updated only from the UI thread
-            ToggleBoldCommand = new RelayCommand(_ =>
-            {
-                Dispatcher.UIThread.Post(() =>
-                    _editor!.FlowDocument.Selection.ApplyFormatting(
-                        Inline.FontWeightProperty,
-                        FontWeight.Bold));
-            });
-
-            ToggleItalicCommand = new RelayCommand(_ =>
-            {
-                Dispatcher.UIThread.Post(() =>
-                    _editor!.FlowDocument.Selection.ApplyFormatting(
-                        Inline.FontStyleProperty,
-                        FontStyle.Italic));
-            });
-
-            ToggleUnderlineCommand = new RelayCommand(_ =>
-            {
-                Dispatcher.UIThread.Post(() =>
-                    _editor!.FlowDocument.Selection.ApplyFormatting(
-                        Inline.TextDecorationsProperty,
-                        TextDecorations.Underline));
-            });
 
         }
 
@@ -220,55 +176,67 @@ namespace Nexus.Desktop.ViewModels
             _editor.KeyDown += OnEditorTextChanged;
         }
 
-        private int _textChangeCounter = 0;
+
         private void OnEditorTextChanged(object? sender, EventArgs e)
         {
-            // after like 10 changes save
-            if(string.IsNullOrWhiteSpace(ExtractPlainText(_editor!.GetFullXamlString())))
+            
+            if (_editor == null || CurrentNote == null)
+                return;
+
+            if (!CurrentNote.HasUnsavedChanges)
+                CurrentNote.HasUnsavedChanges = true;
+
+            this.RaisePropertyChanged(nameof(FooterText));
+            var plainText = ExtractPlainText(_editor.GetFullXamlString());
+            if (string.IsNullOrWhiteSpace(plainText))
             {
                 ClearPredictions();
                 return;
             }
-            // make prediction
-            if(_textChangeCounter < 10)
-            {
-                _textChangeCounter++;
-                return;
-            }
-            _textChangeCounter = 0;
 
-            if (CurrentNote != null)
+            // cancel previous pending autosave
+            _autosaveCts?.Cancel();
+            _autosaveCts = new CancellationTokenSource();
+            var token = _autosaveCts.Token;
+
+            _ = Task.Run(async () =>
             {
-                string content = _editor!.GetFullXamlString();
-                _ = _saveService.SaveAsync(CurrentNote, content);
-                
-                _ = PredictTopicAsync();
-            }
+                try
+                {
+                    await Task.Delay(AutosaveDelay, token);
+                    if (token.IsCancellationRequested)
+                        return;
+
+                    string content = await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        return _editor!.GetFullXamlString();
+                    });
+
+                    // keep the Note model in sync before saving
+                    CurrentNote!.Content = content;
+                    CurrentNote.UpdatedAt = DateTime.UtcNow;
+                    CurrentNote.HasUnsavedChanges = false;
+
+                    await _saveService.SaveAsync(CurrentNote, content);
+                    await PredictTopicAsync();
+
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        this.RaisePropertyChanged(nameof(FooterText));
+                    });
+                }
+                catch (TaskCanceledException)
+                {
+                    // expected, user kept typing
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Autosave failed: {ex.Message}");
+                }
+            });
 
         }
 
-
-        private async Task AddTopicAsync()
-        {
-            string? input = await Prompt.ShowAsync("Add Topic", "Enter new topic:");
-            if (string.IsNullOrWhiteSpace(input)) return;
-            if (CurrentNote is null) return;
-
-            Topic newTopic = new() { Name = input };
-            await _topicsRepo.InsertAsync(newTopic);
-
-            string? topicId = await _topicsRepo.GetIdByNameAsync(input);
-
-            if (topicId == null) return;
-
-            await _tagPredictor.AddOrUpdateTopicAsync(topicId, input);
-            await _noteTopicsRepo.AddTopicToNoteAsync(CurrentNote.Id, topicId);
-            _ = LoadLinkedTopicsAsync();
-
-            _events.RaiseTopicsChanged(CurrentNote!);
-
-
-        }
 
         private async Task AddSuggestedTopic(string? topicName)
         {
@@ -276,6 +244,8 @@ namespace Nexus.Desktop.ViewModels
 
             if (string.IsNullOrWhiteSpace(topicName))
                 return;
+
+            PredictedTopics.Remove(topicName);
             string? currentTopicId = await _topicsRepo.GetIdByNameAsync(topicName);
             if(currentTopicId  == null) return;
 
@@ -299,14 +269,17 @@ namespace Nexus.Desktop.ViewModels
 
         public void LoadNote(Note? note)
         {
-            CurrentNote = note;
             if (note == null) return;
+            CurrentNote = note;
+            CurrentNote.HasUnsavedChanges = false;
             
             if (_editor == null) return;
             if (string.IsNullOrEmpty(note.Content))
                 _editor.CloseDocument();
             else
                 _editor.LoadXamlString(note.Content);
+
+            this.RaisePropertyChanged(nameof(FooterText));
 
             _ = PredictTopicAsync();
 
@@ -371,7 +344,10 @@ namespace Nexus.Desktop.ViewModels
             if (CurrentNote == null) return;
             if (string.IsNullOrEmpty(ExtractPlainText(CurrentNote.Content)))
             {
-                ClearPredictions();
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    ClearPredictions();
+                });
                 return;
             }
             
@@ -383,7 +359,10 @@ namespace Nexus.Desktop.ViewModels
             }
 
             var lines = new List<string>();
-            ClearPredictions();
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                ClearPredictions();
+            });
             foreach (var (id, score) in topTopics)
             {
                 if (PredictedTopics.Count == 3) break;
@@ -391,32 +370,16 @@ namespace Nexus.Desktop.ViewModels
                 if (!namesOfLinkedTopics.Contains(name))
                 {
                     lines.Add($"{name} ({score:F3})");
-                    PredictedTopics.Add(name);
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        if (!PredictedTopics.Contains(name))
+                            PredictedTopics.Add(name);
+                    });
                 }
                 
             }
         }
-        private async void OnTopicPickerChanged()
-        {
-            if (SelectedTopicPickerItem == null)
-                return;
-
-            if (SelectedTopicPickerItem.IsNew)
-            {
-                AddTopicCommand.Execute(null);
-                await LoadTopicPickerAsync(); // refresh
-                return;
-            }
-
-            // Existing topic selected → just add it to the note
-            if (CurrentNote != null && SelectedTopicPickerItem.TopicId != null)
-            {
-                await _noteTopicsRepo.AddTopicToNoteAsync(CurrentNote.Id, SelectedTopicPickerItem.TopicId);
-                await LoadLinkedTopicsAsync();
-            }
-            SelectedTopicPickerItem = null;
-            TopicPickerSelectedIndex = -1;
-        }
+        
 
         public void HighlightSearchHit(string query)
         {
@@ -448,29 +411,7 @@ namespace Nexus.Desktop.ViewModels
                 // If no matches: do nothing (you can add UI feedback later)
             });
         }
-        private async Task LoadTopicPickerAsync()
-        {
-            TopicPickerItems.Clear();
-
-            // First "New Topic..." entry
-            TopicPickerItems.Add(new TopicPickerItem
-            {
-                DisplayName = "➕ New Topic…",
-                IsNew = true
-            });
-
-            var topics = await _topicsRepo.GetAllAsync();
-
-            foreach (var t in topics)
-            {
-                TopicPickerItems.Add(new TopicPickerItem
-                {
-                    DisplayName = t.Name,
-                    TopicId = t.Id,
-                    IsNew = false
-                });
-            }
-        }
+        
 
         private static string ExtractPlainText(string xaml)
         {
@@ -485,6 +426,7 @@ namespace Nexus.Desktop.ViewModels
 
         private async void OpenCustomTopicDialog()
         {
+            bool wasRemoved = false;
             if (CurrentNote == null) return;
             var allTopics = await _topicsRepo.GetAllAsync();
 
@@ -503,6 +445,12 @@ namespace Nexus.Desktop.ViewModels
             if (chosen == null)
                 return; // user cancelled
 
+            if (PredictedTopics.Contains(chosen.Name))
+            {
+                PredictedTopics.Remove(chosen.Name);
+                wasRemoved = true;
+            }
+
             // If new topic (no ID yet)
             var existingTopics = await _topicsRepo.GetAllAsync();
             bool existsInDb = existingTopics.Any(t => t.Id == chosen.Id);
@@ -517,6 +465,7 @@ namespace Nexus.Desktop.ViewModels
             // Link to note
             await _noteTopicsRepo.AddTopicToNoteAsync(CurrentNote.Id, chosen.Id);
             LinkedTopics.Add(chosen);
+            if(wasRemoved) await PredictTopicAsync();
         }
 
         private Window? GetMainWindow()
@@ -525,6 +474,15 @@ namespace Nexus.Desktop.ViewModels
                 return desktop.MainWindow;
 
             return null;
+        }
+
+        public void MarkAsEdited()
+        {
+            if (CurrentNote != null)
+            {
+                CurrentNote.HasUnsavedChanges = true;
+                this.RaisePropertyChanged(nameof(FooterText));
+            }
         }
 
 
