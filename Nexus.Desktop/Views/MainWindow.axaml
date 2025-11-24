@@ -14,8 +14,11 @@
 	<Window.Styles>
 		<!-- TreeView items: pill-like rows -->
 		<Style Selector="TreeViewItem">
-			<Setter Property="Padding" Value="0"/>
-			<Setter Property="Margin" Value="2,1"/>
+			
+			
+			
+			
+			<Setter Property="Margin" Value="10,0,0,0"/>
 			<Setter Property="MinHeight" Value="36"/>
 			<Setter Property="Background" Value="#F5F5F8"/>
 			<Setter Property="CornerRadius" Value="10"/>
@@ -95,7 +98,7 @@
 	</Window.Resources>
 	
 	
-	<Grid ColumnDefinitions="Auto,*">
+	<Grid ColumnDefinitions="330,*">
 		<!-- LEFT PANEL -->
 		<Border Grid.Column="0" Padding="8">
 			<Border.Background>
@@ -297,7 +300,7 @@
 								  IsVisible="{Binding IsHierarchyMode, Converter={x:Static utils:BoolInvertConverter.Instance}}">
 							<TreeView.Styles>
 								<Style Selector="TreeViewItem">
-									<Setter Property="Padding" Value="0"/>
+									
 									<Setter Property="Margin" Value="0"/>
 								</Style>
 							</TreeView.Styles>

@@ -137,6 +137,7 @@ namespace Nexus.Desktop.ViewModels
 
         // helper to map index to enum
         private SearchModeType CurrentSearchMode => (SearchModeType)_searchModeIndex;
+        private readonly Dictionary<string, Note> _noteIndex = new();
 
 
 
@@ -219,17 +220,40 @@ namespace Nexus.Desktop.ViewModels
 
         private async Task<List<Note>> LoadNotesAsync()
         {
-            var notes = (await _noteRepo.GetAllAsync()).ToList();
-            foreach (var n in notes)
+            var dbNotes = (await _noteRepo.GetAllAsync()).ToList();
+            var result = new List<Note>();
+
+            foreach (var dbNote in dbNotes)
+            {
+                if (_noteIndex.TryGetValue(dbNote.Id, out var existing))
+                {
+                    existing.Title = dbNote.Title;
+                    existing.Content = dbNote.Content;
+                    existing.UpdatedAt = dbNote.UpdatedAt;
+                    existing.CreatedAt = dbNote.CreatedAt;
+                    existing.ParentId = dbNote.ParentId;
+
+                    result.Add(existing);
+                }
+                else
+                {
+                    _noteIndex[dbNote.Id] = dbNote;
+                    result.Add(dbNote);
+                }
+            }
+
+            foreach (var n in result)
                 n.Children.Clear();
-            var hierarchy = BuildNoteHierarchy(notes);
+
+            var hierarchy = BuildNoteHierarchy(result);
+
             NotesHierarchy.Clear();
             foreach (var r in hierarchy)
                 NotesHierarchy.Add(r);
 
             ApplyNotesFilter();
 
-            return notes;  
+            return result;
         }
 
         private async Task LoadTopicsAsync(List<Note> allNotes)
@@ -530,8 +554,7 @@ namespace Nexus.Desktop.ViewModels
                 }
             }
 
-            var allNotes = await _noteRepo.GetAllAsync();
-            var allNotesMap = allNotes.ToDictionary(n => n.Id);
+            var allNotesMap = _noteIndex;
 
             var explicitMatches = relatedNotes
                 .OrderByDescending(kvp => kvp.Value)
@@ -569,7 +592,7 @@ namespace Nexus.Desktop.ViewModels
 
             foreach (var (topicId, score) in semantic)
             {
-                foreach (var n in allNotes.Where(x => x.Id != SelectedNote.Id))
+                foreach (var n in _noteIndex.Values.Where(x => x.Id != SelectedNote.Id))
                 {
                     var topicIdsOfN = await _noteTopicsRepo.GetTopicsForNoteAsync(n.Id);
                     if (topicIdsOfN.Contains(topicId))
